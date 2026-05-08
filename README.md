@@ -73,13 +73,52 @@ Sensitive configuration (e.g. environment-specific password logic) lives in `inc
 
 ## x3270 / s3270 binaries
 
-Phosphor requires patched x3270/s3270 binaries that allow interaction with protected fields. Pre-built binaries for macOS and Linux are included. To build from source, see the Dockerfile.
+Phosphor requires a patched build of [suite3270](https://x3270.miraheze.org/wiki/Main_Page) that removes field-protection checks, allowing it to interact with protected mainframe screen fields. The patch and build instructions are included — the recommended way to get the binaries is via the Docker build below.
+
+---
+
+## Docker
+
+The Dockerfile performs a two-stage build: it compiles the patched x3270/s3270 binaries from source, then packages them with Phosphor into a runtime image.
+
+**Build:**
+
+```
+docker build -t phosphor .
+```
+
+**Run** (headless, connecting to a RabbitMQ instance named `phosphor-mq`):
+
+```
+docker run --rm \
+  --network host \
+  phosphor \
+  -t <host>:<port> \
+  -u <user> \
+  -p <password> \
+  -mq localhost \
+  -app True \
+  -v False \
+  -s 0.25
+```
+
+For parallel assessment, run multiple containers simultaneously — one per terminal session your target permits:
+
+```
+for i in $(seq 1 10); do
+  docker run -d --network host \
+    -v $(pwd)/default.xml:/app/default.xml \
+    phosphor -t <host>:<port> -u <user> -p <password> -mq localhost -ba True -v False -s 0.25
+done
+```
+
+> **Note:** Visible mode (`-v True`) requires an X11 server and mounting `/tmp/.X11-unix` into the container. Headless (`-v False`) is recommended for Docker use.
 
 ---
 
 ## RabbitMQ
 
-Phosphor uses persistent RabbitMQ queues for parallel operation. Quick setup with Docker:
+Phosphor uses persistent RabbitMQ queues for parallel operation. Quick setup:
 
 ```
 docker volume create phosphor_log
