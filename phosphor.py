@@ -19,7 +19,7 @@ import itertools
 try:
     from inc.private_includes import return_password_reset_string
 
-except:
+except ImportError:
     from inc.public_includes import return_password_reset_string
 
 from inc.public_includes import do_setup, read_xml, make_excel_workbook, process_mq_results_into_excel, \
@@ -234,7 +234,7 @@ class MainFrame:
 
             self.wait_for_field()
             for d in self.overtype:
-                self.em.send_string(self.d['value'], int(self.d['ypos']), int(self.d['xpos']))
+                self.em.send_string(d['value'], int(d['ypos']), int(d['xpos']))
                 self.do_sleep()  # maybe better than wait for field?
 
     def save_screen_normal(self):
@@ -360,7 +360,7 @@ class MainFrame:
                         # Auth and unknown return the cics region at this position in an error message.
                         # if its not here, it implies something is wrong, see screens which get stuck with a region
                         # restart
-                        self.cics_response = "cics_unknown_wierd"
+                        self.cics_response = "cics_unknown_weird"
                         screen('Found unknown screen: %s' % self.cics_region, 'err')
 
                         # if the cics region isnt here we are either on an unknown or weird page
@@ -413,9 +413,8 @@ class MainFrame:
                     self.terminate()
                     break
 
-                # Escape out of the loop after 1 messages
-                if method_frame.delivery_tag == 1:
-                    break
+                # Process one message per outer loop iteration
+                break
 
             # Cancel the consumer and return any pending messages
             self.channel.cancel()
@@ -459,7 +458,7 @@ class MainFrame:
 
         try:
             self.em.wait_for_field()
-        except:
+        except Exception:
             self.do_sleep()
 
         # resetting these on each assesment to avoid overun.
@@ -548,7 +547,8 @@ class MainFrame:
                 screen("Assessing %s" % self.app_code, type="debug")
 
                 if self.app_code in self.bad_app_codes:
-                    self.channel.basic_ack(method_frame.delivery_tag)
+                    self.application_response = "app_unknown"
+                    self.mq_queue = "app_unknown"
                 else:
                     self.assess_app_screen()
 
@@ -586,9 +586,8 @@ class MainFrame:
                     self.terminate()
                     break
 
-                # Escape out of the loop after 1 messages
-                if method_frame.delivery_tag == 1:
-                    break
+                # Process one message per outer loop iteration
+                break
 
             # Cancel the consumer and return any pending messages
             self.channel.cancel()
@@ -636,9 +635,8 @@ class MainFrame:
                     self.terminate()
                     break
 
-                # Escape out of the loop after 1 messages
-                if method_frame.delivery_tag == 1:
-                    break
+                # Process one message per outer loop iteration
+                break
 
             # Cancel the consumer and return any pending messages
             self.channel.cancel()

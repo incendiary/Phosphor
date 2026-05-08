@@ -1,0 +1,42 @@
+services:
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: phosphor-mq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_log:/var/log/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phosphor:
+    build: .
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      # Mount config so you can tune it per engagement without rebuilding
+      - ./default.xml:/app/default.xml
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Run a one-off command:
+    #   docker compose run --rm phosphor -t <host>:<port> -u <user> -p <pass> -mq rabbitmq -app True -v False
+    #
+    # Run parallel sessions:
+    #   docker compose up --scale phosphor=10
+    #
+    # Visible mode (-v True) requires an X11 server:
+    #   docker compose run --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix phosphor -t ... -v True
+
+volumes:
+  rabbitmq_data:
+  rabbitmq_log:

@@ -8,7 +8,9 @@ Named after the phosphor-coated CRTs that gave old terminal screens their green 
 
 ---
 
-**Note:** This project was originally developed in 2019 and kept private. It is now being released publicly after a cleanup pass assisted by [Claude Code](https://claude.ai/code) (Anthropic), which helped audit for sensitive data, refactor hardcoded client-specific values into XML config, and add an initial test suite. The code was written for Python 2 and may need work before it runs cleanly on modern systems — a Python 3 port and Docker update are on the to-do list. Contributions welcome.
+**Note:** This project was originally developed in 2019 and kept private across two separate repos. It is being released here as a fresh extraction — the git history has been intentionally omitted to ensure no client-specific or sensitive data leaks from the original repos. The code has been cleaned up and ported to Python 3 with the assistance of [Claude Code](https://claude.ai/code) (Anthropic), which helped audit for sensitive data, refactor hardcoded client-specific values into XML config, fix several bugs, and add a test suite.
+
+Because of the fresh-start approach, there may be rough edges or environment-specific assumptions that weren't obvious without a live target to test against. If you run into issues, PRs are very welcome — the heavy lifting is done, but real-world testing will shake out the remaining corners.
 
 ---
 
@@ -118,23 +120,31 @@ done
 
 ## RabbitMQ
 
-Phosphor uses persistent RabbitMQ queues for parallel operation. Quick setup:
+Phosphor uses persistent RabbitMQ queues for parallel operation. The easiest way to run both RabbitMQ and Phosphor together is via docker-compose:
 
 ```
-docker volume create phosphor_log
-docker volume create phosphor_data
+# Start RabbitMQ (stays up in background)
+docker compose up rabbitmq -d
 
+# Populate a queue
+docker compose run --rm phosphor -t <host>:<port> -u <user> -p <pass> -mq rabbitmq -popu True
+
+# Run 10 parallel assessment sessions
+docker compose up --scale phosphor=10
+```
+
+Management UI: http://localhost:15672 (default creds: guest/guest)
+
+To run RabbitMQ standalone without docker-compose:
+
+```
 docker run -d \
-  -v "phosphor_log:/var/log/rabbitmq" \
-  -v "phosphor_data:/var/lib/rabbitmq" \
   --hostname phosphor-mq \
   --name phosphor-mq \
   --publish="5672:5672" \
   --publish="15672:15672" \
   rabbitmq:3-management
 ```
-
-Management UI: http://localhost:15672 (default creds: guest/guest)
 
 ---
 

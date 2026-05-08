@@ -231,7 +231,7 @@ def search_for_previous_application_code(ws, application_code):
     #   returns either the row of a matching entry or false
     ##
 
-    for row in range(1, ws.max_row):
+    for row in range(1, ws.max_row + 1):
         if ws.cell(row=row, column=1).value is not None:
 
             if ws.cell(row=row, column=1).value == application_code.lower():
