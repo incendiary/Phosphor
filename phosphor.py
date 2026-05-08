@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Phosphor -- mainframe TN3270 security assessment tool
 # Based on original work by Soldier of Fortran (@mainframed767)
 
@@ -263,13 +263,7 @@ class MainFrame:
 
         if len(path) > 0:
             #  0 len path is CWD.
-            if not os.path.exists(path):
-                try:
-                    os.makedirs(path)
-                except OSError, e:
-                    if e.errno != os.errno.EEXIST:
-                        raise
-                    pass
+            os.makedirs(path, exist_ok=True)
 
     def send_tab_x_times(self, x):
         ##
@@ -400,7 +394,7 @@ class MainFrame:
             # Get a message and break out
             for method_frame, properties, body in self.channel.consume('cics'):
                 # Display the message parts
-                self.cics_region = body
+                self.cics_region = body.decode()
                 self.assess_cics_screen()
 
                 # Acknowledge the message
@@ -507,7 +501,7 @@ class MainFrame:
             self.terminate()
             sys.exit()
 
-        else:
+        elif self.app_code not in self.bad_app_codes:
             self.look_for_app_code()
 
         self.make_and_set_folder_path()
@@ -549,7 +543,7 @@ class MainFrame:
             for method_frame, properties, body in self.channel.consume(que_to_consume.lower()):
 
                 # Display the message parts
-                self.app_code = body
+                self.app_code = body.decode()
 
                 screen("Assessing %s" % self.app_code, type="debug")
 
@@ -572,8 +566,8 @@ class MainFrame:
                 if "unknown" in self.application_response:
                     # Got an unknown response, don't wish to continue, screen in unknown state.
 
-                    print '[E] Unknown app transaction at %s' % self.mq_queue
-                    print "[E] Got an unknown response, don't wish to continue, screen in unknown state"
+                    print('[E] Unknown app transaction at %s' % self.mq_queue)
+                    print("[E] Got an unknown response, don't wish to continue, screen in unknown state")
 
                     time.sleep(self.sleep)
 
@@ -581,11 +575,11 @@ class MainFrame:
                     self.terminate()
                     break
 
-                if self.environment['default'] is 'False' and "auth" in self.application_response:
+                if self.environment['default'] == 'False' and "auth" in self.application_response:
                     ##
                     #   Environmental difference means we have to restart if in the secondary env and hit an auth error
                     ##
-                    print '[E] Got Auth in secondary enviroment, restarting'
+                    print('[E] Got Auth in secondary enviroment, restarting')
                     time.sleep(self.sleep)
 
                     self.app_continue = False
@@ -621,13 +615,13 @@ class MainFrame:
             for method_frame, properties, body in self.channel.consume('users'):
 
                 # Display the message parts
-                self.username_to_check = body
+                self.username_to_check = body.decode()
                 self.assess_login_screen()
 
                 # Acknowledge the message
                 self.channel.basic_ack(method_frame.delivery_tag)
 
-                print "[*] user %s is  %s" % (self.username_to_check, self.username_response)
+                print("[*] user %s is  %s" % (self.username_to_check, self.username_response))
 
                 self.channel.basic_publish(exchange='', routing_key=self.username_response, body=self.username_to_check,
                                            properties=pika.BasicProperties(delivery_mode=2))
@@ -635,8 +629,8 @@ class MainFrame:
                 if "unknown" in self.username_response:
                     # Got an unknown response, don't wish to continue, screen in unknown state.
 
-                    print  'Unknown response with %s' % self.username_to_check
-                    print "[X] Got an unknown response, don't wish to continue, screen in unknown state"
+                    print('Unknown response with %s' % self.username_to_check)
+                    print("[X] Got an unknown response, don't wish to continue, screen in unknown state")
 
                     self.check_username_continue = False
                     self.terminate()
@@ -772,7 +766,7 @@ class MainFrame:
                 self.disclosed_priv_accounts.append(user)
                 screen("priv: %s" % str(user), type="debug", level=2)
 
-        users_area = [data_list[x:x + 1] for x in xrange(users_row_start, users_row_end, 1)]
+        users_area = [data_list[x:x + 1] for x in range(users_row_start, users_row_end, 1)]
         for line in users_area:
             if len(line[0][user_code_start:user_code_end].replace(" ", "")) == 4:
                 code = line[0][user_code_start:user_code_end].strip()
@@ -784,9 +778,9 @@ class MainFrame:
                     screen("user: %s" % str(user), type="debug", level=2)
 
     def return_user_info_results(self):
-        departments = [self.disclosed_dept[x:x + 5] for x in xrange(0, len(self.disclosed_dept), 5)]
-        priv_users = [self.disclosed_priv_accounts[x:x + 5] for x in xrange(0, len(self.disclosed_priv_accounts), 5)]
-        users = [self.disclosed_accounts[x:x + 5] for x in xrange(0, len(self.disclosed_accounts), 5)]
+        departments = [self.disclosed_dept[x:x + 5] for x in range(0, len(self.disclosed_dept), 5)]
+        priv_users = [self.disclosed_priv_accounts[x:x + 5] for x in range(0, len(self.disclosed_priv_accounts), 5)]
+        users = [self.disclosed_accounts[x:x + 5] for x in range(0, len(self.disclosed_accounts), 5)]
 
         screen("Departments: count %s" % len(self.disclosed_dept), type="info", level=1)
         for department in departments:
@@ -819,7 +813,7 @@ class MainFrame:
         for data_line in data_list:
             for split_elements in data_line.split():
                 if "tra(" in split_elements.lower():
-                    region = split_elements.translate(None, ''.join(char))
+                    region = split_elements.translate(str.maketrans('', '', ''.join(char)))
                     self.transaction_codes.append(region)
 
     def get_cemt_transactions(self):
@@ -847,7 +841,7 @@ class MainFrame:
                 # Should be on final pane.
                 self.find_cemt_transactions_on_screen()
 
-                chunks = [self.transaction_codes[x:x+5] for x in xrange(0, len(self.transaction_codes), 5)]
+                chunks = [self.transaction_codes[x:x+5] for x in range(0, len(self.transaction_codes), 5)]
                 for chunk in chunks:
                     screen(str(chunk), type="info", level=2)
 
@@ -900,7 +894,7 @@ def main():
         for user_dict in user_list_dict:
             for env_dictionary in env_list_dict:
                 prepend_string = "%s_%s_" % (user_dict['user'], env_dictionary['name'])
-                print prepend_string
+                print(prepend_string)
 
                 for app_dict in app_list_dict:
                     ##
@@ -937,12 +931,12 @@ def main():
         application_code_list = return_queue_contents(args.que, args)
 
         f = open(args.file_output, 'w')
-        print application_code_list[-1]
+        print(application_code_list[-1])
 
         if application_code_list[-1] is None:
             application_code_list.pop()
 
-        print application_code_list
+        print(application_code_list)
 
         for ele in application_code_list:
             f.write(ele + '\n')

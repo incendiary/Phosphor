@@ -6,10 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from inc.mq_includes import create_mq_routing_key
 
-try:
-    from unittest.mock import MagicMock, patch, call
-except ImportError:
-    from mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call
 
 from inc import mq_includes
 

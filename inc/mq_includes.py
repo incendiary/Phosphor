@@ -19,7 +19,7 @@ def returnmq(args):
     channel.queue_declare(queue=args.que.lower(), durable=True)
     print(' [*] Waiting for messages for %s. To exit press CTRL+C' % args.mq)
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(callback, queue=args.que)
+    channel.basic_consume(queue=args.que, on_message_callback=callback)
     channel.start_consuming()
 
 
@@ -51,7 +51,7 @@ def populate_mq(args, prepend=None, apend=None):
         char_set = string.ascii_lowercase + string.digits
         routing_key = create_mq_routing_key("app", prepend, apend)
     else:
-        print "unknown queue"
+        print("unknown queue")
         sys.exit()
 
     # channel = que_dec(channel, routing_key)  dont think we need reasignment
@@ -104,7 +104,7 @@ def que_dec(channel, name, destructive=False):
     ##
     #   Creates a queue, destroys if instructed.
     ##
-    print "[*] Creating: %s" % name
+    print("[*] Creating: %s" % name)
 
     if destructive:
         channel.queue_delete(queue=name)
@@ -127,10 +127,10 @@ def pop_queue(args, queue):
         #print "[P] Processing %s" % queue
 
         if not queue_empty:
-            method, properties, body = channel.basic_get(queue, no_ack=True)
+            method, properties, body = channel.basic_get(queue, auto_ack=True)
             callback(channel, method, properties, body)
             if args.debug:
-                print "[p] processing %s" % body
+                print("[p] processing %s" % body)
             return body
         else:
             return None

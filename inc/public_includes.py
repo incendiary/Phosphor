@@ -52,16 +52,16 @@ def set_creds(args):
 
 
 def do_setup():
-    print '''
+    print(r'''
 
 
-                      ________              __          
-                     /  _____/______ __ ___/  |_  ____  
-                    /   \  __\_  __ \  |  \   __\/ __ \ 
-                    \    \_\  \  | \/  |  /|  | \  ___/ 
+                      ________              __
+                     /  _____/______ __ ___/  |_  ____
+                    /   \  __\_  __ \  |  \   __\/ __ \
+                    \    \_\  \  | \/  |  /|  | \  ___/
                      \______  /__|  |____/ |__|  \___  >
-                            \/                       \/ 
-                '''
+                            \/                       \/
+                ''')
 
     parser = argparse.ArgumentParser(description='Grute helps with green screen app testing, in theory')
 
@@ -156,25 +156,25 @@ def do_setup():
         if args.file_output and args.que:
             return args
         else:
-            print '[!] You need to specify a queue and backup file. Try -h for help.'
+            print('[!] You need to specify a queue and backup file. Try -h for help.')
             sys.exit()
 
     if args.manual_inport:
         if args.file_input and args.que:
             return args
         else:
-            print '[!] You need to specify a queue and restore file. Try -h for help.'
+            print('[!] You need to specify a queue and restore file. Try -h for help.')
             sys.exit()
 
     if args.logmein:
         args.visable = True
 
     if not args.target:
-        print '      [!] You gotta specify a target. Try -h for help.'
+        print('      [!] You gotta specify a target. Try -h for help.')
         sys.exit()
 
     if ":" not in args.target:
-        print '      [!] Target Format off, use host:port . Try -h for help.'
+        print('      [!] Target Format off, use host:port . Try -h for help.')
         sys.exit()
 
     return args
@@ -257,7 +257,7 @@ def search_for_user_column(ws, user):
                 return cellObj.column
 
     else:
-        print "[i] No user match for %s" % user
+        print("[i] No user match for %s" % user)
         return False
 
 
@@ -266,14 +266,14 @@ def process_mq_results_into_excel(wb, user, enviroment, response_type, applicati
     #   WB object, queue we've just got results from, etc
     ##
 
-    ws = wb.get_sheet_by_name(enviroment)
+    ws = wb[enviroment]
 
     # look for previous versions of the application code
 
     user_column = search_for_user_column(ws, user)
 
     if not user_column:
-        print "[E] Didnt find user exiting"
+        print("[E] Didnt find user exiting")
         sys.exit()
 
     pre_existing_application_code = search_for_previous_application_code(ws, application_code)
@@ -331,7 +331,7 @@ def screen(text, type='clear', level=0):
         tab_count += "\t"
         level = level - 1
 
-    print color + tab_count + prepend + text + (bcolors.ENDC if color != "" else "")
+    print(color + tab_count + prepend + str(text) + (bcolors.ENDC if color != "" else ""))
 
 
 class bcolors:
