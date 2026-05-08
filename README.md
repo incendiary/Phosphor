@@ -8,7 +8,7 @@ Named after the phosphor-coated CRTs that gave old terminal screens their green 
 
 ---
 
-**Note:** This project was originally developed in 2019 and kept private. It is now being released publicly after cleaning. The code was written for Python 2 and may need work before it runs cleanly on modern systems — a Python 3 port and Docker update are on the to-do list. Contributions welcome.
+**Note:** This project was originally developed in 2019 and kept private. It is now being released publicly after a cleanup pass assisted by [Claude Code](https://claude.ai/code) (Anthropic), which helped audit for sensitive data, refactor hardcoded client-specific values into XML config, and add an initial test suite. The code was written for Python 2 and may need work before it runs cleanly on modern systems — a Python 3 port and Docker update are on the to-do list. Contributions welcome.
 
 ---
 
@@ -105,10 +105,10 @@ Management UI: http://localhost:15672 (default creds: guest/guest)
 
 ## Acknowledgements
 
-Phosphor would not exist without the work of **Soldier of Fortran ([@mainframed767](https://twitter.com/mainframed767))**.
+Phosphor would not exist without the work of **Phil Young / Soldier of Fortran ([@mainframed767](https://twitter.com/mainframed767))**.
 
 - The original [MFscreen](https://github.com/mainframed/MFscreen) tool is the direct ancestor of this project — the core approach of driving x3270 to interact with mainframe applications came from there.
-- His [Evil Mainframe](https://evilmainframe.com) course (highly recommended) provided an excellent grounding in mainframe security concepts and was attended during the development of this tool. If you are doing any mainframe security work, take the course.
+- The **Ethical Mainframe Hacking** course (co-created by Phil Young and Chad Rikansrud, originally released as *Evil Mainframe*) provided an excellent grounding in mainframe security concepts and was attended during the development of this tool. The course has since been acquired by Broadcom — see the [announcement](https://news.broadcom.com/mainframe-software/broadcom-acquires-unique-mainframe-pentesting-class). If you are doing any mainframe security work, it is strongly recommended.
 - His broader body of mainframe security research — talks, tools, and writeups — is an invaluable resource for anyone working in this space.
 
 The CICS exception list (`cicsexceptions`) of transactions known to hang or crash CICS is also drawn from his public research.
