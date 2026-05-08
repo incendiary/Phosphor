@@ -1,0 +1,211 @@
+<?xml version="1.0"?>
+<data>
+
+    <!--
+        APPLICATION RESPONSE SIGNATURES
+        Define the strings Phosphor looks for to classify each screen response.
+        Add one <application> block per response type you want to track.
+    -->
+    <application>
+        <string>DC900004 ERROR TRANSACTION CODE NOT ACCEPTABLE. PLEASE RE-TYPE</string>
+        <type>app_error</type>
+        <xpos>1</xpos>
+        <ypos>24</ypos>
+    </application>
+    <application>
+        <string>Security Violation</string>
+        <type>app_auth</type>
+        <xpos>28</xpos>
+        <ypos>5</ypos>
+    </application>
+    <application>
+        <string>SECURITY VIOLATION</string>
+        <type>app_auth</type>
+        <xpos>20</xpos>
+        <ypos>2</ypos>
+    </application>
+    <application>
+        <!--Dummy value - replace with a known string from a valid app screen -->
+        <string>app_unknown</string>
+        <type>app_unknown</type>
+        <xpos>1</xpos>
+        <ypos>1</ypos>
+    </application>
+
+    <!--
+        CICS ERROR CODES
+        Standard IBM CICS error codes. These are unlikely to need changing,
+        but eypos/expos mark where the region name appears in the error message
+        and may need tuning per CICS version.
+    -->
+    <cics>
+        <string>DFHAC2001</string>
+        <type>cics_error</type>
+        <xpos>2</xpos>
+        <ypos>23</ypos>
+        <eypos>23</eypos>
+        <expos>54</expos>
+    </cics>
+    <cics>
+        <string>DFHAC2033</string>
+        <type>cics_auth</type>
+        <xpos>2</xpos>
+        <ypos>23</ypos>
+        <eypos>23</eypos>
+        <expos>72</expos>
+    </cics>
+
+    <!--
+        TEST ACCOUNTS
+        Credentials used for password-reset mode (-chg). Replace with your
+        test account details. These should never be real production credentials.
+    -->
+    <account>
+        <user>uid1</user>
+        <password>password1</password>
+    </account>
+    <account>
+        <user>uid2</user>
+        <password>password2</password>
+    </account>
+    <account>
+        <user>uid3</user>
+        <password>password3</password>
+    </account>
+    <account>
+        <user>uid4</user>
+        <password>password4</password>
+    </account>
+
+    <!--
+        USERNAME ENUMERATION
+        Defines where to type the username and what strings indicate
+        a valid vs invalid response. Tune xpos/ypos for your login screen.
+    -->
+    <username_login_field_location>
+        <xpos>1</xpos>
+        <ypos>1</ypos>
+    </username_login_field_location>
+    <username_response>
+        <type>user_invalid</type>
+        <string>ICH408I</string>
+        <xpos>2</xpos>
+        <ypos>22</ypos>
+    </username_response>
+    <username_response>
+        <type>user_valid</type>
+        <string>PASSWORD</string>
+        <xpos>2</xpos>
+        <ypos>22</ypos>
+    </username_response>
+
+    <!--
+        ENVIRONMENTS
+        If your app runs across multiple regions or instances, define them here.
+        'default' true = used unless -e flag is passed.
+        value = the string sent to the screen to select this environment.
+        ypos/xpos = where on the screen that string is entered.
+    -->
+    <environment>
+        <name>environment1</name>
+        <value>ENV_VALUE_1</value>
+        <default>true</default>
+        <ypos>1</ypos>
+        <xpos>1</xpos>
+    </environment>
+    <environment>
+        <name>environment2</name>
+        <value>ENV_VALUE_2</value>
+        <default>false</default>
+        <ypos>1</ypos>
+        <xpos>1</xpos>
+    </environment>
+
+    <!--
+        OVERTYPE
+        String entered at a fixed screen position after login, used to override
+        a default value (e.g. force a specific mode or flag). Tune all values.
+    -->
+    <overtype>
+        <name>overtype_example</name>
+        <value>ABCD</value>
+        <ypos>1</ypos>
+        <xpos>1</xpos>
+    </overtype>
+
+    <!--
+        REGION LOGIN POSITION
+        Co-ordinates of the menu option used to select the CICS region after
+        initial VTAM login. Tune ypos/xpos for your environment.
+    -->
+    <region_login_position>
+        <name>region1</name>
+        <ypos>1</ypos>
+        <xpos>1</xpos>
+    </region_login_position>
+
+    <!--
+        CICS CONFIGURATION
+        launch_command: the VTAM command typed at the initial screen to reach
+        CICS. This varies per installation — common values are 'cics', 'cicsp',
+        or a site-specific alias.
+    -->
+    <cics_config>
+        <launch_command>cics</launch_command>
+    </cics_config>
+
+    <!--
+        BAD APPLICATION CODES
+        Transaction codes that are known to hang or cause problems on your
+        target. These are skipped during app-code fuzzing. Add one
+        <bad_app_code> block per code.
+    -->
+    <bad_app_code>
+        <code>example1</code>
+    </bad_app_code>
+    <bad_app_code>
+        <code>example2</code>
+    </bad_app_code>
+
+    <!--
+        DEPARTMENT SCREEN CONFIGURATION
+        Used by the department scraping mode (-dept). All values are specific
+        to the target application's CICS transaction and screen layout.
+        launch_transaction: CICS transaction code that opens the dept screen.
+        submenu_option: menu option number to select after entering the transaction.
+        not_found_string: text shown when a department code does not exist.
+        no_more_data_string: text shown when pagination reaches the final page.
+    -->
+    <department_config>
+        <launch_transaction>DEPT</launch_transaction>
+        <submenu_option>1</submenu_option>
+        <not_found_string>DEPARTMENT NOT FOUND</not_found_string>
+        <no_more_data_string>NO MORE DATA</no_more_data_string>
+    </department_config>
+
+    <!--
+        DEPARTMENT SCREEN POSITIONS
+        Byte offsets for extracting data from the department screen.
+        All values need tuning for the specific target application screen layout.
+        Row numbers are 0-indexed (row 0 = top of screen).
+        Column values are Python slice start/end positions.
+    -->
+    <department_screen>
+        <dept_row>3</dept_row>
+        <dept_col_start>29</dept_col_start>
+        <dept_col_check_end>31</dept_col_check_end>
+        <dept_col_end>80</dept_col_end>
+        <manager_row>4</manager_row>
+        <manager_code_col_start>22</manager_code_col_start>
+        <manager_code_col_end>26</manager_code_col_end>
+        <manager_name_col_start>29</manager_name_col_start>
+        <manager_name_col_end>80</manager_name_col_end>
+        <users_row_start>9</users_row_start>
+        <users_row_end>19</users_row_end>
+        <user_code_col_start>19</user_code_col_start>
+        <user_code_col_end>23</user_code_col_end>
+        <user_name_col_start>27</user_name_col_start>
+        <user_name_col_end>80</user_name_col_end>
+    </department_screen>
+
+</data>
