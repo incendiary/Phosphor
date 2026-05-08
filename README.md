@@ -6,6 +6,12 @@ Named after the phosphor-coated CRTs that gave old terminal screens their green 
 
 > **For authorized use only. Only run this tool against systems you have explicit written permission to test.**
 
+---
+
+**Note:** This project was originally developed in 2019 and kept private. It is now being released publicly after cleaning. The code was written for Python 2 and may need work before it runs cleanly on modern systems — a Python 3 port and Docker update are on the to-do list. Contributions welcome.
+
+---
+
 Based on foundational work by [Soldier of Fortran (@mainframed767)](https://github.com/mainframed).
 
 ---
