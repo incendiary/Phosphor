@@ -1,14 +1,32 @@
-import pika
-import time
 import random
 import string
-from inc.public_includes import screen
 import sys
+import time
+
+import pika
 
 debug_value = False
 
 # Buggy transactions that hang or crash CICS
-cicsexceptions = ['AORQ', 'CEJR','CJMJ','CPCT','CKTI','CPSS','CPIR','CRSY','CSFU','CRTP','CSZI','CXCU','CXRE','CMPX','CKAM','CEX2']
+cicsexceptions = [
+    "AORQ",
+    "CEJR",
+    "CJMJ",
+    "CPCT",
+    "CKTI",
+    "CPSS",
+    "CPIR",
+    "CRSY",
+    "CSFU",
+    "CRTP",
+    "CSZI",
+    "CXCU",
+    "CXRE",
+    "CMPX",
+    "CKAM",
+    "CEX2",
+]
+
 
 def returnmq(args):
     ##
@@ -17,7 +35,7 @@ def returnmq(args):
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=args.mq))
     channel = connection.channel()
     channel.queue_declare(queue=args.que.lower(), durable=True)
-    print(' [*] Waiting for messages for %s. To exit press CTRL+C' % args.mq)
+    print(" [*] Waiting for messages for %s. To exit press CTRL+C" % args.mq)
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=args.que, on_message_callback=callback)
     channel.start_consuming()
@@ -28,7 +46,7 @@ def callback(ch, method, properties, body):
     #   Callback used to pull messages from queue
     ##
 
-    time.sleep(body.count(b'.'))
+    time.sleep(body.count(b"."))
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
@@ -66,10 +84,14 @@ def populate_mq(args, prepend=None, apend=None):
 
                 elif args.populate_cics or args.populate_users:
                     for positionfour in char_set:
-                        resulting_string = positionone + positiontwo + positionthree + positionfour
-                        if (args.populate_cics and resulting_string not in cicsexceptions) or args.populate_users:
+                        resulting_string = (
+                            positionone + positiontwo + positionthree + positionfour
+                        )
+                        if (
+                            args.populate_cics
+                            and resulting_string not in cicsexceptions
+                        ) or args.populate_users:
                             mq_basic_publish(channel, routing_key, resulting_string)
-
 
     channel.close()
     connection.close()
@@ -79,10 +101,15 @@ def mq_basic_publish(channel, routing_key, body):
     ##
     #   Publishes our message to a queue
     ##
-    #screen("MQ publish key %s - body: %s" % (routing_key, body), type='debug', level=2)
+    # screen("MQ publish key %s - body: %s" % (routing_key, body),
+    #        type='debug', level=2)
 
-    channel.basic_publish(exchange='', routing_key=routing_key.lower(), body=body,
-                          properties=pika.BasicProperties(delivery_mode=2))
+    channel.basic_publish(
+        exchange="",
+        routing_key=routing_key.lower(),
+        body=body,
+        properties=pika.BasicProperties(delivery_mode=2),
+    )
 
 
 def create_mq_routing_key(basename, prepend=None, apend=None):
@@ -124,7 +151,7 @@ def pop_queue(args, queue):
         queue_state = channel.queue_declare(queue.lower(), durable=True, passive=True)
         queue_empty = queue_state.method.message_count == 0
 
-        #print "[P] Processing %s" % queue
+        # print "[P] Processing %s" % queue
 
         if not queue_empty:
             method, properties, body = channel.basic_get(queue, auto_ack=True)
@@ -135,8 +162,9 @@ def pop_queue(args, queue):
         else:
             return None
 
-    except:
+    except Exception:
         return None
+
 
 def return_queue_contents(queue, args):
 
@@ -162,10 +190,10 @@ def populate_mq_for_excel(user_list_dict, env_list_dict, app_list_dict, args):
 
     for user_dict in user_list_dict:
         for env_dictionary in env_list_dict:
-            prepend_string = "%s_%s_" % (user_dict['user'], env_dictionary['name'])
+            prepend_string = "%s_%s_" % (user_dict["user"], env_dictionary["name"])
 
             for app_dict in app_list_dict:
-                que_name = prepend_string + app_dict['type']
+                que_name = prepend_string + app_dict["type"]
                 que_dec(channel, que_name, destructive=True)
                 que_dec(channel, prepend_string + "app", destructive=True)
                 ques.append(que_name)

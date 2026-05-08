@@ -4,7 +4,8 @@ max-line-length = 88
 extend-ignore = E203, W503
 # Tests and generated config don't need strict checking
 per-file-ignores =
-    tests/*:E501
+    # tests use sys.path.insert before imports — E402 is unavoidable
+    tests/*:E501,E402
 exclude =
     .git,
     __pycache__,

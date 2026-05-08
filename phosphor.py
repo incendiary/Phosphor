@@ -2,39 +2,65 @@
 # Phosphor -- mainframe TN3270 security assessment tool
 # Based on original work by Soldier of Fortran (@mainframed767)
 
-from py3270 import EmulatorBase
-import time  # needed for sleep
-import sys
 import os
-import platform  # needed for OS check
-import string
+import platform
+import sys
+import time
+
 import pika
-from collections import defaultdict
-from pprint import pprint
-import itertools
 
+from py3270 import EmulatorBase
 
-#Private includes include the potentialyl sensitive includes, for exmaple the default password structure for an
-# enviroemt
+# Private includes hold environment-specific secrets (e.g. password logic).
+# Falls back to a safe stub if the private file isn't present.
 try:
     from inc.private_includes import return_password_reset_string
-
 except ImportError:
     from inc.public_includes import return_password_reset_string
 
-from inc.public_includes import do_setup, read_xml, make_excel_workbook, process_mq_results_into_excel, \
-    save_excel_workbook, set_creds, screen, set_debug
-from inc.mq_includes import returnmq, populate_mq, pop_queue, create_mq_routing_key, que_dec, \
-    populate_mq_for_excel, mq_basic_publish, return_queue_contents
+from inc.mq_includes import (
+    mq_basic_publish,
+    populate_mq,
+    populate_mq_for_excel,
+    que_dec,
+    return_queue_contents,
+)
+from inc.public_includes import (
+    do_setup,
+    make_excel_workbook,
+    process_mq_results_into_excel,
+    read_xml,
+    save_excel_workbook,
+    screen,
+    set_creds,
+    set_debug,
+)
 
 # Buggy transactions that hang or crash CICS
-cicsexceptions = ['AORQ', 'CEJR','CJMJ','CPCT','CKTI','CPSS','CPIR','CRSY','CSFU','CRTP','CSZI','CXCU','CXRE','CMPX','CKAM','CEX2']
+cicsexceptions = [
+    "AORQ",
+    "CEJR",
+    "CJMJ",
+    "CPCT",
+    "CKTI",
+    "CPSS",
+    "CPIR",
+    "CRSY",
+    "CSFU",
+    "CRTP",
+    "CSZI",
+    "CXCU",
+    "CXRE",
+    "CMPX",
+    "CKAM",
+    "CEX2",
+]
 debug_value = False
 
 
 class MainFrame:
 
-    def __init__(self, target, sleep, clobber, credentials,  args):
+    def __init__(self, target, sleep, clobber, credentials, args):
         """
         :param target: Target in the form of host:port
         :param sleep: Sleep to use in default user supplied sleep timings
@@ -43,8 +69,8 @@ class MainFrame:
         :param args: args object which includes the user supplied args
         """
         self.target = target
-        self.host = target.split(':')[0]
-        self.port = target.split(':')[1]
+        self.host = target.split(":")[0]
+        self.port = target.split(":")[1]
         self.sleep = sleep
         self.credentials = credentials
         self.nice_file_name = "%s_%s" % (self.host, self.port)
@@ -83,7 +109,7 @@ class MainFrame:
         self.debug = args.debug
         self.overtype = False
         self.bad_app_codes = []
-        self.cics_launch_command = 'cics'
+        self.cics_launch_command = "cics"
         self.dept_config = {}
         self.dept_screen_config = {}
 
@@ -92,35 +118,40 @@ class MainFrame:
             if os.path.exists(self.nice_file_name_html):
                 os.remove(self.nice_file_name_html)
             else:
-                screen('Clobber requested but file doesnt exist', type='info')
+                screen("Clobber requested but file doesnt exist", type="info")
 
-        if platform.system() == 'Darwin':  # 'Darwin'
-            class Emulator(EmulatorBase):
-                x3270_executable = 'MAC_Binaries/x3270'
-                s3270_executable = 'MAC_Binaries/s3270'
+        if platform.system() == "Darwin":  # 'Darwin'
 
-        elif platform.system() == 'Linux':
             class Emulator(EmulatorBase):
-                x3270_executable = 'lin_Binaries/x3270'
-                s3270_executable = 'lin_Binaries/s3270'
+                x3270_executable = "MAC_Binaries/x3270"
+                s3270_executable = "MAC_Binaries/s3270"
+
+        elif platform.system() == "Linux":
+
+            class Emulator(EmulatorBase):
+                x3270_executable = "lin_Binaries/x3270"
+                s3270_executable = "lin_Binaries/s3270"
 
         else:
-            screen('[!] Your Platform:' + platform.system() + 'is not supported at this time. ', type='err')
+            screen(
+                "[!] Your Platform:"
+                + platform.system()
+                + "is not supported at this time. ",
+                type="err",
+            )
             sys.exit()
 
         self.em = Emulator(visible=self.args.visable)
 
     def connect_to_zos(self):
         # Connects to target
-        screen('Connecting to: ' + self.target, type='info')
+        screen("Connecting to: " + self.target, type="info")
 
-        trying = False
         try:
             self.em.connect(self.target)
-            trying = True
-        except:
-            trying = False
-        return trying
+            return True
+        except Exception:
+            return False
 
     def set_bulk_app_mode_true(self, state=True):
         ##
@@ -159,11 +190,11 @@ class MainFrame:
     def print_countdown(self):
         # prints a countdown to an action
 
-        screen('Sleeping for : %s' % str(self.sleep), type='info')
+        screen("Sleeping for : %s" % str(self.sleep), type="info")
         snooze = self.sleep - 1
         while snooze > 0:
             time.sleep(1)
-            screen(snooze, type='info')
+            screen(snooze, type="info")
             snooze -= 1
 
     def terminate(self):
@@ -186,10 +217,10 @@ class MainFrame:
         Logs you into the MF, uses the credential dict supplied at init.
         :return:
         """
-        self.em.send_string(self.credentials['vtamcredentials']['user'])
+        self.em.send_string(self.credentials["vtamcredentials"]["user"])
         self.send_tab_x_times(4)
 
-        self.em.send_string(self.credentials['vtamcredentials']['password'])
+        self.em.send_string(self.credentials["vtamcredentials"]["password"])
         self.do_sleep()
         self.em.wait_for_field()
         self.em.send_enter()
@@ -206,7 +237,10 @@ class MainFrame:
         Moves the cursor to a defined region for login, used to select from a menu
         """
         self.em.send_enter()
-        self.em.move_to(int(self.region_login_position['ypos']), int(self.region_login_position['xpos']))
+        self.em.move_to(
+            int(self.region_login_position["ypos"]),
+            int(self.region_login_position["xpos"]),
+        )
         self.em.send_enter()
 
     def do_sleep(self):
@@ -219,12 +253,15 @@ class MainFrame:
         """
         Logs us into our app for testing
         """
-        self.em.send_string(self.credentials['appcredentials']['user'])
+        self.em.send_string(self.credentials["appcredentials"]["user"])
         self.send_tab_x_times(3)
-        self.em.send_string(self.credentials['appcredentials']['password'])
+        self.em.send_string(self.credentials["appcredentials"]["password"])
         if self.environment:
-            self.em.send_string(self.environment['value'], int(self.environment['ypos']),
-                                int(self.environment['xpos']))
+            self.em.send_string(
+                self.environment["value"],
+                int(self.environment["ypos"]),
+                int(self.environment["xpos"]),
+            )
 
         self.wait_for_field()
         self.em.send_enter()
@@ -234,7 +271,7 @@ class MainFrame:
 
             self.wait_for_field()
             for d in self.overtype:
-                self.em.send_string(d['value'], int(d['ypos']), int(d['xpos']))
+                self.em.send_string(d["value"], int(d["ypos"]), int(d["xpos"]))
                 self.do_sleep()  # maybe better than wait for field?
 
     def save_screen_normal(self):
@@ -249,9 +286,9 @@ class MainFrame:
         # Saves the screen to a specific location
         ##
         self.make_path_to_file(fn)
-        screen('Saving screen to: ' + fn, type='info')
+        screen("Saving screen to: " + fn, type="info")
 
-        command = 'printtext(html,' + fn + ')'
+        command = "printtext(html," + fn + ")"
         self.em.exec_command(command)
 
     def make_path_to_file(self, fn):
@@ -270,7 +307,7 @@ class MainFrame:
         # Sends tab to the emulator X times
         ##
         for i in range(0, x):
-            self.em.exec_command('Tab()')
+            self.em.exec_command("Tab()")
 
     # Password Stuff
 
@@ -288,20 +325,24 @@ class MainFrame:
 
         self.connect_to_zos()
         for account in self.password_reset_accounts:
-            screen('connected: ', type='info')
+            screen("connected: ", type="info")
 
             self.em.wait_for_field()
-            screen('Changing password for: %s to: %s' % (account['user'], account['password']), type='info')
+            screen(
+                "Changing password for: %s to: %s"
+                % (account["user"], account["password"]),
+                type="info",
+            )
 
-            self.em.send_string(account['user'])
+            self.em.send_string(account["user"])
             self.send_tab_x_times(4)
             self.em.send_string(daily_password_reset)
             time.sleep(self.sleep)
             self.send_tab_x_times(8)
-            self.em.send_string(account['password'], ypos=18, xpos=17)
+            self.em.send_string(account["password"], ypos=18, xpos=17)
             time.sleep(self.sleep)
             self.em.send_enter()
-            self.em.send_string(account['password'], ypos=18, xpos=17)
+            self.em.send_string(account["password"], ypos=18, xpos=17)
             time.sleep(self.sleep)
             self.em.send_enter()
             time.sleep(self.sleep)
@@ -312,14 +353,20 @@ class MainFrame:
         self.application_response_folder = None
 
         if self.environment is not None:
-            self.path_to_folder = "app/%s/%s/%s/%s/%s" % (self.credentials['appcredentials']['user'],
-                                                          self.environment['name'],
-                                                          self.application_response, self.app_code[0],
-                                                          self.app_code[1])
+            self.path_to_folder = "app/%s/%s/%s/%s/%s" % (
+                self.credentials["appcredentials"]["user"],
+                self.environment["name"],
+                self.application_response,
+                self.app_code[0],
+                self.app_code[1],
+            )
         else:
-            self.path_to_folder = "app/%s/%s/%s/%s" % (self.credentials['appcredentials']['user'],
-                                                       self.application_response, self.app_code[0],
-                                                       self.app_code[1])
+            self.path_to_folder = "app/%s/%s/%s/%s" % (
+                self.credentials["appcredentials"]["user"],
+                self.application_response,
+                self.app_code[0],
+                self.app_code[1],
+            )
 
     # CICS stuff
 
@@ -328,11 +375,15 @@ class MainFrame:
         self.em.send_string(self.cics_launch_command)
         self.em.send_enter()
         time.sleep(self.sleep)
-        self.em.send_string('CESN', 1, 2)
+        self.em.send_string("CESN", 1, 2)
         self.em.send_enter()
         time.sleep(self.sleep)
-        self.em.send_string(self.credentials['appcredentials']['user'], 10, 26)
-        self.em.send_string(self.credentials['appcredentials']['password'], 11, 26,)
+        self.em.send_string(self.credentials["appcredentials"]["user"], 10, 26)
+        self.em.send_string(
+            self.credentials["appcredentials"]["password"],
+            11,
+            26,
+        )
         self.em.send_enter()
 
     def assess_cics_screen(self):
@@ -342,45 +393,73 @@ class MainFrame:
             time.sleep(5)
 
             #  list dict like:
-            #  [{'xpos': '2', 'type': 'cics_error', 'string': 'DFHAC2001', 'ypos': '23'},
+            #  [{'xpos': '2', 'type': 'cics_error',
+            #    'string': 'DFHAC2001', 'ypos': '23'},
             #  {'xpos': '2', 'type': 'cics_auth', 'string': 'DFHAC2033', 'ypos': '23'}]
 
             for dictionary in self.cics_list_dict:
                 # check to see if the string /erroc code is found
-                if self.em.string_found(int(dictionary['ypos']), int(dictionary['xpos']), dictionary['string']):
-                    screen("checking: %s != %s" % (self.cics_region.lower(),
-                                                   self.em.string_get(int(dictionary['eypos']),
-                                                                      int(dictionary['expos']),
-                                                                      len(self.cics_region)).lower()), type='info')
+                if self.em.string_found(
+                    int(dictionary["ypos"]),
+                    int(dictionary["xpos"]),
+                    dictionary["string"],
+                ):
+                    screen(
+                        "checking: %s != %s"
+                        % (
+                            self.cics_region.lower(),
+                            self.em.string_get(
+                                int(dictionary["eypos"]),
+                                int(dictionary["expos"]),
+                                len(self.cics_region),
+                            ).lower(),
+                        ),
+                        type="info",
+                    )
 
                     # Need to check here ot see if cics region is returned
-                    if not self.cics_region.lower() == self.em.string_get(int(dictionary['eypos']),
-                                                                          int(dictionary['expos']),
-                                                                          len(self.cics_region)).lower():
-                        # Auth and unknown return the cics region at this position in an error message.
-                        # if its not here, it implies something is wrong, see screens which get stuck with a region
-                        # restart
+                    if (
+                        not self.cics_region.lower()
+                        == self.em.string_get(
+                            int(dictionary["eypos"]),
+                            int(dictionary["expos"]),
+                            len(self.cics_region),
+                        ).lower()
+                    ):
+                        # Auth and unknown return the cics region at this position.
+                        # If it's not here something is wrong — screens can get
+                        # stuck with a region restart.
                         self.cics_response = "cics_unknown_weird"
-                        screen('Found unknown screen: %s' % self.cics_region, 'err')
+                        screen("Found unknown screen: %s" % self.cics_region, "err")
 
-                        # if the cics region isnt here we are either on an unknown or weird page
+                        # if the cics region isnt here we are on an unknown
+                        # or weird page
                         # break out of the if
                         break
                     else:
-                        self.cics_response = dictionary['type']
+                        self.cics_response = dictionary["type"]
                     break
 
                 else:
                     # Error code not know, this is an unknwon page at this point
                     self.cics_response = "cics_unknown"
-                    screen('Found unknown screen: %s' % self.cics_region, 'err')
+                    screen("Found unknown screen: %s" % self.cics_region, "err")
 
-            self.save_screen_specific("cics/%s/%s/%s/%s.html" % (self.cics_response, self.cics_region[0],
-                                                                 self.cics_region[1], self.cics_region))
+            self.save_screen_specific(
+                "cics/%s/%s/%s/%s.html"
+                % (
+                    self.cics_response,
+                    self.cics_region[0],
+                    self.cics_region[1],
+                    self.cics_region,
+                )
+            )
 
     def check_cics_transactions(self):
         self.cics_continue = True
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.args.mq))
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=self.args.mq)
+        )
         self.channel = connection.channel()
         self.channel.basic_qos(prefetch_count=1)
 
@@ -388,11 +467,11 @@ class MainFrame:
             self.channel = que_dec(self.channel, name)
 
         for dictionary in self.cics_list_dict:
-            self.channel = que_dec(self.channel, dictionary['type'])
+            self.channel = que_dec(self.channel, dictionary["type"])
 
         while self.cics_continue:
             # Get a message and break out
-            for method_frame, properties, body in self.channel.consume('cics'):
+            for method_frame, properties, body in self.channel.consume("cics"):
                 # Display the message parts
                 self.cics_region = body.decode()
                 self.assess_cics_screen()
@@ -400,13 +479,19 @@ class MainFrame:
                 # Acknowledge the message
                 self.channel.basic_ack(method_frame.delivery_tag)
 
-                mq_basic_publish(self.channel, routing_key=self.cics_response, body=self.cics_region)
+                mq_basic_publish(
+                    self.channel, routing_key=self.cics_response, body=self.cics_region
+                )
 
                 if "unknown" in self.cics_response:
-                    # Got an unknown response, don't wish to continue, screen in unknown state.
-
-                    screen('Interesting transaction at %s' % self.cics_region, type='err')
-                    screen('Got an unknown response, dont wish to continue, screen in unknown state', type='err')
+                    # Unknown response — screen is in an indeterminate state.
+                    screen(
+                        "Interesting transaction at %s" % self.cics_region, type="err"
+                    )
+                    screen(
+                        "Unknown response — screen in unknown state, stopping",
+                        type="err",
+                    )
                     self.do_sleep()
 
                     self.cics_continue = False
@@ -429,20 +514,36 @@ class MainFrame:
         # Should only be here if we have an app code match from a generator
         for dict in self.application_list_dict:
 
-            screen("Looking for %s at x:%s y:%s" %(dict['string'], dict['xpos'], dict['ypos']), type='debug', level=1)
-            screen("found %s" % self.em.string_get(int(dict['ypos']), int(dict['xpos']), len(dict['string'])),
-                   type='debug', level=1)
+            screen(
+                "Looking for %s at x:%s y:%s"
+                % (dict["string"], dict["xpos"], dict["ypos"]),
+                type="debug",
+                level=1,
+            )
+            screen(
+                "found %s"
+                % self.em.string_get(
+                    int(dict["ypos"]), int(dict["xpos"]), len(dict["string"])
+                ),
+                type="debug",
+                level=1,
+            )
 
-            if self.em.string_found(int(dict['ypos']), int(dict['xpos']), dict['string']):
+            if self.em.string_found(
+                int(dict["ypos"]), int(dict["xpos"]), dict["string"]
+            ):
 
-                self.application_response = dict['type']
+                self.application_response = dict["type"]
 
                 if self.bulk_app_mode:
-                    prepend_string = "%s_%s_" % (self.credentials['appcredentials']['user'], self.environment['name'])
-                    self.mq_queue = prepend_string + dict['type']
+                    prepend_string = "%s_%s_" % (
+                        self.credentials["appcredentials"]["user"],
+                        self.environment["name"],
+                    )
+                    self.mq_queue = prepend_string + dict["type"]
 
                 else:
-                    self.mq_queue = dict['type']
+                    self.mq_queue = dict["type"]
 
                 return
 
@@ -472,29 +573,49 @@ class MainFrame:
             self.application_response = "app_unknown"
             self.mq_queue = "app_unknown"
             if self.bulk_app_mode:
-                prepend_string = "%s_%s_" % (self.credentials['appcredentials']['user'], self.environment['name'])
+                prepend_string = "%s_%s_" % (
+                    self.credentials["appcredentials"]["user"],
+                    self.environment["name"],
+                )
 
                 self.mq_queue = prepend_string + "app_unknown"
 
-        if not any(d['string'].lower() == self.em.string_get(int(d['ypos']), int(d['xpos']), len(d['string'])).lower()
-                  for d in self.application_list_dict):
+        if not any(
+            d["string"].lower()
+            == self.em.string_get(
+                int(d["ypos"]), int(d["xpos"]), len(d["string"])
+            ).lower()
+            for d in self.application_list_dict
+        ):
 
-            # Above generator returns true if any of the identified responses are present. replicate for cics
+            # Generator returns True if any known response is on screen.
+            # Nothing matched — treat as unknown.
             self.application_response = "app_unknown"
             self.mq_queue = "app_unknown"
 
             if self.bulk_app_mode:
-                prepend_string = "%s_%s_" % (self.credentials['appcredentials']['user'], self.environment['name'])
+                prepend_string = "%s_%s_" % (
+                    self.credentials["appcredentials"]["user"],
+                    self.environment["name"],
+                )
 
                 self.mq_queue = prepend_string + "app_unknown"
 
-        if self.check_screen_for_string("Retry later if signon is rejected") and self.app_code != "sfa" and self.app_code != "sys":
+        if (
+            self.check_screen_for_string("Retry later if signon is rejected")
+            and self.app_code != "sfa"
+            and self.app_code != "sys"
+        ):
             # At cics screen restart
             screen("At login screen stuck, restarting", type="err")
             self.terminate()
             sys.exit()
 
-        if self.check_screen_for_string("DFHAC2001") and self.app_code != "sfa" and self.app_code != "sys":
+        if (
+            self.check_screen_for_string("DFHAC2001")
+            and self.app_code != "sfa"
+            and self.app_code != "sys"
+        ):
             # At cics screen restart
             screen("At login screen stuck, restarting", type="err")
             self.terminate()
@@ -511,35 +632,44 @@ class MainFrame:
         self.application_list_dict = application_list_dict
 
         self.app_continue = True
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.args.mq))
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=self.args.mq)
+        )
         self.channel = connection.channel()
         self.channel.basic_qos(prefetch_count=1)
 
         ##
-        # Feel singular function should be the same as list, but a list of 1 element, review.
+        # TODO: singular mode should behave like bulk with a 1-element list.
         ##
 
         if self.bulk_app_mode:
-            prepend_string = "%s_%s_" % (self.credentials['appcredentials']['user'], self.environment['name'])
+            prepend_string = "%s_%s_" % (
+                self.credentials["appcredentials"]["user"],
+                self.environment["name"],
+            )
 
             for dictionary in self.application_list_dict:
-                self.channel = que_dec(self.channel, prepend_string + dictionary['type'])
+                self.channel = que_dec(
+                    self.channel, prepend_string + dictionary["type"]
+                )
 
-            que_to_consume = prepend_string + 'app'
+            que_to_consume = prepend_string + "app"
 
         else:
 
             for dictionary in self.application_list_dict:
-                self.channel = que_dec(self.channel, dictionary['type'])
+                self.channel = que_dec(self.channel, dictionary["type"])
 
-            que_to_consume = 'app'
+            que_to_consume = "app"
 
         while self.app_continue:
             # Get a message and break out
 
             screen("Consuming: %s" % que_to_consume, type="info")
 
-            for method_frame, properties, body in self.channel.consume(que_to_consume.lower()):
+            for method_frame, properties, body in self.channel.consume(
+                que_to_consume.lower()
+            ):
 
                 # Display the message parts
                 self.app_code = body.decode()
@@ -557,17 +687,25 @@ class MainFrame:
                 # Acknowledge the message
                 self.channel.basic_ack(method_frame.delivery_tag)
 
-                screen("response: %s \tcode:%s" % (self.application_response, self.app_code), type="debug", level=1)
+                screen(
+                    "response: %s \tcode:%s"
+                    % (self.application_response, self.app_code),
+                    type="debug",
+                    level=1,
+                )
 
                 screen("MQ: %s" % (self.mq_queue), type="debug", level=1)
 
-                mq_basic_publish(self.channel, routing_key=self.mq_queue, body=self.app_code,)
+                mq_basic_publish(
+                    self.channel,
+                    routing_key=self.mq_queue,
+                    body=self.app_code,
+                )
 
                 if "unknown" in self.application_response:
-                    # Got an unknown response, don't wish to continue, screen in unknown state.
-
-                    print('[E] Unknown app transaction at %s' % self.mq_queue)
-                    print("[E] Got an unknown response, don't wish to continue, screen in unknown state")
+                    # Unknown response — screen is in an indeterminate state.
+                    print("[E] Unknown app transaction at %s" % self.mq_queue)
+                    print("[E] Unknown response — screen in unknown state, stopping")
 
                     time.sleep(self.sleep)
 
@@ -575,11 +713,14 @@ class MainFrame:
                     self.terminate()
                     break
 
-                if self.environment['default'] == 'False' and "auth" in self.application_response:
+                if (
+                    self.environment["default"] == "False"
+                    and "auth" in self.application_response
+                ):
                     ##
-                    #   Environmental difference means we have to restart if in the secondary env and hit an auth error
+                    #   Auth error in secondary environment — must restart.
                     ##
-                    print('[E] Got Auth in secondary enviroment, restarting')
+                    print("[E] Got Auth in secondary enviroment, restarting")
                     time.sleep(self.sleep)
 
                     self.app_continue = False
@@ -601,7 +742,9 @@ class MainFrame:
 
     def check_login(self):
         self.check_username_continue = True
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.args.mq))
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=self.args.mq)
+        )
         self.channel = connection.channel()
         self.channel.basic_qos(prefetch_count=1)
 
@@ -611,7 +754,7 @@ class MainFrame:
         while self.check_username_continue:
             # Get a message and break out
 
-            for method_frame, properties, body in self.channel.consume('users'):
+            for method_frame, properties, body in self.channel.consume("users"):
 
                 # Display the message parts
                 self.username_to_check = body.decode()
@@ -620,16 +763,22 @@ class MainFrame:
                 # Acknowledge the message
                 self.channel.basic_ack(method_frame.delivery_tag)
 
-                print("[*] user %s is  %s" % (self.username_to_check, self.username_response))
+                print(
+                    "[*] user %s is  %s"
+                    % (self.username_to_check, self.username_response)
+                )
 
-                self.channel.basic_publish(exchange='', routing_key=self.username_response, body=self.username_to_check,
-                                           properties=pika.BasicProperties(delivery_mode=2))
+                self.channel.basic_publish(
+                    exchange="",
+                    routing_key=self.username_response,
+                    body=self.username_to_check,
+                    properties=pika.BasicProperties(delivery_mode=2),
+                )
 
                 if "unknown" in self.username_response:
-                    # Got an unknown response, don't wish to continue, screen in unknown state.
-
-                    print('Unknown response with %s' % self.username_to_check)
-                    print("[X] Got an unknown response, don't wish to continue, screen in unknown state")
+                    # Unknown response — screen is in an indeterminate state.
+                    print("Unknown response with %s" % self.username_to_check)
+                    print("[X] Unknown response — screen in unknown state, stopping")
 
                     self.check_username_continue = False
                     self.terminate()
@@ -653,26 +802,40 @@ class MainFrame:
 
     def assess_login_screen(self):
         self.em.wait_for_field()
-        self.em.send_string(self.username_to_check,
-                            ypos=int(self.username_field_location_dict['ypos']),
-                            xpos=int(self.username_field_location_dict['xpos']))
+        self.em.send_string(
+            self.username_to_check,
+            ypos=int(self.username_field_location_dict["ypos"]),
+            xpos=int(self.username_field_location_dict["xpos"]),
+        )
 
         self.em.send_enter()
 
-        if not any(d['string'].lower() == self.em.string_get(int(d['ypos']), int(d['xpos']), len(d['string'])).lower()
-                   for d in self.username_responses_list_dict):
-            # Above generator returns true if any of the identified responses are present. replicte for cics
+        if not any(
+            d["string"].lower()
+            == self.em.string_get(
+                int(d["ypos"]), int(d["xpos"]), len(d["string"])
+            ).lower()
+            for d in self.username_responses_list_dict
+        ):
+            # Nothing matched — treat as unknown.
             self.username_response = "user_unknown"
 
         else:
             self.look_for_login_code()
-        self.save_screen_specific("login/%s/%s.html" % (self.username_response,  self.username_to_check))
+        self.save_screen_specific(
+            "login/%s/%s.html" % (self.username_response, self.username_to_check)
+        )
 
     def look_for_login_code(self):
         # Should only be here if we have an login code match from a generator
         for d in self.username_responses_list_dict:
-            if d['string'].lower() == self.em.string_get(int(d['ypos']), int(d['xpos']), len(d['string'])).lower():
-                self.username_response = d['type']
+            if (
+                d["string"].lower()
+                == self.em.string_get(
+                    int(d["ypos"]), int(d["xpos"]), len(d["string"])
+                ).lower()
+            ):
+                self.username_response = d["type"]
                 return
 
     def check_screen_for_string(self, string):
@@ -685,10 +848,14 @@ class MainFrame:
             return True
 
     def get_department(self):
-        launch_transaction = self.dept_config.get('launch_transaction', 'DEPT')
-        submenu_option = self.dept_config.get('submenu_option', '1')
-        not_found_string = self.dept_config.get('not_found_string', 'DEPARTMENT NOT FOUND')
-        no_more_data_string = self.dept_config.get('no_more_data_string', 'NO MORE DATA')
+        launch_transaction = self.dept_config.get("launch_transaction", "DEPT")
+        submenu_option = self.dept_config.get("submenu_option", "1")
+        not_found_string = self.dept_config.get(
+            "not_found_string", "DEPARTMENT NOT FOUND"
+        )
+        no_more_data_string = self.dept_config.get(
+            "no_more_data_string", "NO MORE DATA"
+        )
 
         self.em.send_string(launch_transaction)
         self.em.wait_for_field()
@@ -697,7 +864,7 @@ class MainFrame:
         self.em.send_string(submenu_option)
         self.em.send_enter()
 
-        char_set = 'abcdefghijklmnopqrstuvwxyz0123456789'
+        char_set = "abcdefghijklmnopqrstuvwxyz0123456789"
 
         for positionone in char_set:
             for positiontwo in char_set:
@@ -707,18 +874,20 @@ class MainFrame:
                 self.em.send_enter()
                 should_continue = True
                 if self.check_screen_for_string(not_found_string):
-                    self.save_screen_specific('dept/nonexist/' + string + ".html")
+                    self.save_screen_specific("dept/nonexist/" + string + ".html")
                     should_continue = False
                 else:
                     self.search_user_info()
-                    self.save_screen_specific('dept/' + string + ".html")
+                    self.save_screen_specific("dept/" + string + ".html")
                 i = 1
                 if should_continue:
                     while self.check_screen_for_string(no_more_data_string) is False:
                         self.em.send_pf8()
 
-                        self.save_screen_specific('dept/' + string + ".html")
-                        self.save_screen_specific('dept/' + string + "_%s" % str(i) + ".html")
+                        self.save_screen_specific("dept/" + string + ".html")
+                        self.save_screen_specific(
+                            "dept/" + string + "_%s" % str(i) + ".html"
+                        )
                         self.search_user_info()
 
                         i += 1
@@ -731,21 +900,21 @@ class MainFrame:
         #  Screen position values are read from the department_screen XML config block.
         ##
         s = self.dept_screen_config
-        dept_row          = int(s.get('dept_row', 3))
-        dept_col_start    = int(s.get('dept_col_start', 29))
-        dept_col_check_end= int(s.get('dept_col_check_end', 31))
-        dept_col_end      = int(s.get('dept_col_end', 80))
-        mgr_row           = int(s.get('manager_row', 4))
-        mgr_code_start    = int(s.get('manager_code_col_start', 22))
-        mgr_code_end      = int(s.get('manager_code_col_end', 26))
-        mgr_name_start    = int(s.get('manager_name_col_start', 29))
-        mgr_name_end      = int(s.get('manager_name_col_end', 80))
-        users_row_start   = int(s.get('users_row_start', 9))
-        users_row_end     = int(s.get('users_row_end', 19))
-        user_code_start   = int(s.get('user_code_col_start', 19))
-        user_code_end     = int(s.get('user_code_col_end', 23))
-        user_name_start   = int(s.get('user_name_col_start', 27))
-        user_name_end     = int(s.get('user_name_col_end', 80))
+        dept_row = int(s.get("dept_row", 3))
+        dept_col_start = int(s.get("dept_col_start", 29))
+        dept_col_check_end = int(s.get("dept_col_check_end", 31))
+        dept_col_end = int(s.get("dept_col_end", 80))
+        mgr_row = int(s.get("manager_row", 4))
+        mgr_code_start = int(s.get("manager_code_col_start", 22))
+        mgr_code_end = int(s.get("manager_code_col_end", 26))
+        mgr_name_start = int(s.get("manager_name_col_start", 29))
+        mgr_name_end = int(s.get("manager_name_col_end", 80))
+        users_row_start = int(s.get("users_row_start", 9))
+        users_row_end = int(s.get("users_row_end", 19))
+        user_code_start = int(s.get("user_code_col_start", 19))
+        user_code_end = int(s.get("user_code_col_end", 23))
+        user_name_start = int(s.get("user_name_col_start", 27))
+        user_name_end = int(s.get("user_name_col_end", 80))
 
         data_list = self.em.screen_get()
 
@@ -758,46 +927,58 @@ class MainFrame:
         if len(data_list[mgr_row][mgr_code_start:mgr_code_end].replace(" ", "")) == 4:
             code = data_list[mgr_row][mgr_code_start:mgr_code_end]
             name = data_list[mgr_row][mgr_name_start:mgr_name_end].strip()
-            user = {'code': code, 'name': name}
+            user = {"code": code, "name": name}
             screen("user: %s" % str(user), type="debug", level=2)
             if user not in self.disclosed_priv_accounts:
                 self.disclosed_priv_accounts.append(user)
                 screen("priv: %s" % str(user), type="debug", level=2)
 
-        users_area = [data_list[x:x + 1] for x in range(users_row_start, users_row_end, 1)]
+        users_area = [
+            data_list[x : x + 1] for x in range(users_row_start, users_row_end, 1)
+        ]
         for line in users_area:
             if len(line[0][user_code_start:user_code_end].replace(" ", "")) == 4:
                 code = line[0][user_code_start:user_code_end].strip()
                 name = line[0][user_name_start:user_name_end].strip()
-                user = {'code': code, 'name': name}
+                user = {"code": code, "name": name}
                 screen("user: %s" % str(user), type="debug", level=2)
                 if user not in self.disclosed_accounts:
                     self.disclosed_accounts.append(user)
                     screen("user: %s" % str(user), type="debug", level=2)
 
     def return_user_info_results(self):
-        departments = [self.disclosed_dept[x:x + 5] for x in range(0, len(self.disclosed_dept), 5)]
-        priv_users = [self.disclosed_priv_accounts[x:x + 5] for x in range(0, len(self.disclosed_priv_accounts), 5)]
-        users = [self.disclosed_accounts[x:x + 5] for x in range(0, len(self.disclosed_accounts), 5)]
+        departments = [
+            self.disclosed_dept[x : x + 5]
+            for x in range(0, len(self.disclosed_dept), 5)
+        ]
 
         screen("Departments: count %s" % len(self.disclosed_dept), type="info", level=1)
         for department in departments:
             screen(str(department), type="info", level=2)
 
-        screen("Priv Users: count %s" % len(self.disclosed_priv_accounts), type="info", level=1)
+        screen(
+            "Priv Users: count %s" % len(self.disclosed_priv_accounts),
+            type="info",
+            level=1,
+        )
         for priv_user in self.disclosed_priv_accounts:
 
-            screen("U| C:%s| Ac:%s" %(priv_user['code'], priv_user['name']), type="info", level=2)
+            screen(
+                "U| C:%s| Ac:%s" % (priv_user["code"], priv_user["name"]),
+                type="info",
+                level=2,
+            )
 
         screen("Users: count %s" % len(self.disclosed_accounts), type="info", level=1)
         for user in self.disclosed_accounts:
-            screen("U| C:%s| Ac:%s" % (user['code'], user['name']), type="info", level=2)
+            screen(
+                "U| C:%s| Ac:%s" % (user["code"], user["name"]), type="info", level=2
+            )
 
     def count_occurances_in_screen(self, string):
         ##
         # Counts the number of occurances of a string on a screen
         ##
-        i = 0
         data_list = self.em.screen_get()
 
         if self.check_screen_for_string(string):
@@ -806,19 +987,21 @@ class MainFrame:
             return False
 
     def find_cemt_transactions_on_screen(self):
-        char = ['Tra', '(', ')']
+        char = ["Tra", "(", ")"]
         data_list = self.em.screen_get()
         for data_line in data_list:
             for split_elements in data_line.split():
                 if "tra(" in split_elements.lower():
-                    region = split_elements.translate(str.maketrans('', '', ''.join(char)))
+                    region = split_elements.translate(
+                        str.maketrans("", "", "".join(char))
+                    )
                     self.transaction_codes.append(region)
 
     def get_cemt_transactions(self):
         self.em.send_clear()
-        self.em.send_string('cemt')
+        self.em.send_string("cemt")
         self.em.send_enter()
-        self.em.send_string('i trans')
+        self.em.send_string("i trans")
         self.em.send_enter()
         screen("Should be in CEMT trans.  Starting Scrape", type="info")
 
@@ -828,7 +1011,7 @@ class MainFrame:
 
         self.em.send_pf8()
 
-        while self.count_occurances_in_screen('+') >= 2:
+        while self.count_occurances_in_screen("+") >= 2:
             self.find_cemt_transactions_on_screen()
 
             time.sleep(0.05)
@@ -839,7 +1022,10 @@ class MainFrame:
                 # Should be on final pane.
                 self.find_cemt_transactions_on_screen()
 
-                chunks = [self.transaction_codes[x:x+5] for x in range(0, len(self.transaction_codes), 5)]
+                chunks = [
+                    self.transaction_codes[x : x + 5]
+                    for x in range(0, len(self.transaction_codes), 5)
+                ]
                 for chunk in chunks:
                     screen(str(chunk), type="info", level=2)
 
@@ -851,15 +1037,15 @@ class MainFrame:
 def main():
 
     args = do_setup()
-    app_list_dict = read_xml(args.config, 'application')
-    env_list_dict = read_xml(args.config, 'environment')
-    user_list_dict = read_xml(args.config, 'account')
-    overtype_list_dict = read_xml(args.config, 'overtype')
-    region_login_position_list_dict = read_xml(args.config, 'region_login_position')
-    bad_app_codes_list = [d['code'] for d in read_xml(args.config, 'bad_app_code')]
-    cics_config_list = read_xml(args.config, 'cics_config')
-    dept_config_list = read_xml(args.config, 'department_config')
-    dept_screen_list = read_xml(args.config, 'department_screen')
+    app_list_dict = read_xml(args.config, "application")
+    env_list_dict = read_xml(args.config, "environment")
+    user_list_dict = read_xml(args.config, "account")
+    overtype_list_dict = read_xml(args.config, "overtype")
+    region_login_position_list_dict = read_xml(args.config, "region_login_position")
+    bad_app_codes_list = [d["code"] for d in read_xml(args.config, "bad_app_code")]
+    cics_config_list = read_xml(args.config, "cics_config")
+    dept_config_list = read_xml(args.config, "department_config")
+    dept_screen_list = read_xml(args.config, "department_screen")
 
     if args.debug:
         set_debug(True)
@@ -875,7 +1061,7 @@ def main():
 
         for user_dict in user_list_dict:
             for env_dictionary in env_list_dict:
-                prepend_string = "%s_%s_" % (user_dict['user'], env_dictionary['name'])
+                prepend_string = "%s_%s_" % (user_dict["user"], env_dictionary["name"])
                 populate_mq(args, prepend_string)
         sys.exit(0)
 
@@ -891,20 +1077,24 @@ def main():
 
         for user_dict in user_list_dict:
             for env_dictionary in env_list_dict:
-                prepend_string = "%s_%s_" % (user_dict['user'], env_dictionary['name'])
+                prepend_string = "%s_%s_" % (user_dict["user"], env_dictionary["name"])
                 print(prepend_string)
 
                 for app_dict in app_list_dict:
                     ##
-                    # So this should generate our queuenames.  Create a list of all transactions in that queue
+                    # Generate queue name and drain all transactions from it.
                     ##
-                    que_name = prepend_string + app_dict['type']
+                    que_name = prepend_string + app_dict["type"]
                     application_code_list = return_queue_contents(que_name, args)
                     for application_code in application_code_list:
                         if application_code is not None:
-                            wb = process_mq_results_into_excel(wb, user_dict['user'],
-                                                               env_dictionary['name'], app_dict['type'],
-                                                               application_code)
+                            wb = process_mq_results_into_excel(
+                                wb,
+                                user_dict["user"],
+                                env_dictionary["name"],
+                                app_dict["type"],
+                                application_code,
+                            )
 
         save_excel_workbook(wb)
         sys.exit()
@@ -928,7 +1118,7 @@ def main():
     if args.manual_export:
         application_code_list = return_queue_contents(args.que, args)
 
-        f = open(args.file_output, 'w')
+        f = open(args.file_output, "w")
         print(application_code_list[-1])
 
         if application_code_list[-1] is None:
@@ -937,7 +1127,7 @@ def main():
         print(application_code_list)
 
         for ele in application_code_list:
-            f.write(ele + '\n')
+            f.write(ele + "\n")
 
         f.close()
         sys.exit()
@@ -947,14 +1137,14 @@ def main():
     target = MainFrame(args.target, args.sleep, args.clobber, credentials, args)
     target.set_bad_app_codes(bad_app_codes_list)
     if cics_config_list:
-        target.set_cics_launch_command(cics_config_list[0]['launch_command'])
+        target.set_cics_launch_command(cics_config_list[0]["launch_command"])
     if dept_config_list:
         target.set_department_config(dept_config_list[0])
     if dept_screen_list:
         target.set_department_screen_config(dept_screen_list[0])
 
     if args.changepass:
-        target.add_password_reset_info(read_xml(args.config, 'account'))
+        target.add_password_reset_info(read_xml(args.config, "account"))
         target.change_passwords()
         time.sleep(args.sleep)
         sys.exit()
@@ -974,7 +1164,7 @@ def main():
                 time.sleep(1)
 
     if args.check_cics:
-        cics_list_dict = read_xml(args.config, 'cics')
+        cics_list_dict = read_xml(args.config, "cics")
 
         if target.connect_to_zos():
             screen("Connected", type="info")
@@ -995,8 +1185,10 @@ def main():
 
         if target.connect_to_zos():
 
-            target.add_username_field_location(read_xml(args.config, 'username_login_field_location'))
-            target.add_username_responses(read_xml(args.config, 'username_response'))
+            target.add_username_field_location(
+                read_xml(args.config, "username_login_field_location")
+            )
+            target.add_username_responses(read_xml(args.config, "username_response"))
 
             screen("Connected", type="info")
             target.check_login()
@@ -1059,7 +1251,7 @@ def main():
             target.get_department()
 
     if args.cemt_trans:
-        cics_list_dict = read_xml(args.config, 'cics')
+        cics_list_dict = read_xml(args.config, "cics")
         if target.connect_to_zos():
             screen("Connected", type="info")
             target.wait_for_field_and_screenshot()
