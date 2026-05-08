@@ -5,10 +5,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-try:
-    from unittest.mock import MagicMock, patch, PropertyMock
-except ImportError:
-    from mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch, PropertyMock
 
 FIXTURE = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_config.xml')
 

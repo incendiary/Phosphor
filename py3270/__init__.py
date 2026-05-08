@@ -137,6 +137,7 @@ class EmulatorBase(object):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            universal_newlines=True,
         )
         self.is_terminated = False
         self.status = Status(None)

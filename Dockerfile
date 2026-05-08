@@ -4,7 +4,7 @@
 # Phosphor requires a patched build of suite3270 3.6ga4 that removes
 # field-protection checks, allowing it to interact with protected screen
 # fields. The patch is applied before compilation.
-FROM ubuntu:22.04 AS suite3270builder
+FROM ubuntu:24.04 AS suite3270builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
@@ -39,7 +39,7 @@ RUN patch -p1 < suite3270-full.patch \
 # ============================================================
 # Stage 2: Phosphor runtime image
 # ============================================================
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.title="Phosphor"
 LABEL org.opencontainers.image.description="Mainframe TN3270 security assessment tool"
@@ -47,11 +47,10 @@ LABEL org.opencontainers.image.source="https://github.com/incendiary/Phosphor"
 LABEL org.opencontainers.image.licenses="GPL-2.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python2 \
-    curl \
+    python3 \
+    python3-pip \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -sSf https://bootstrap.pypa.io/pip/2.7/get-pip.py | python2
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -61,7 +60,7 @@ COPY --from=suite3270builder /usr/local/bin/x3270 /app/lin_Binaries/x3270
 
 # Install Python dependencies before copying source so this layer is cached
 COPY requirements.txt .
-RUN pip2 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application source
 COPY . .
@@ -69,4 +68,4 @@ COPY . .
 # Phosphor runs headless (s3270) by default inside Docker.
 # Pass -v True only if you have an X11 server available and have mounted
 # /tmp/.X11-unix into the container.
-ENTRYPOINT ["python2", "phosphor.py"]
+ENTRYPOINT ["python3", "phosphor.py"]
