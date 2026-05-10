@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 88
+# E203/W503 conflict with Black's formatting choices
+extend-ignore = E203, W503
+# Tests and generated config don't need strict checking
+per-file-ignores =
+    # tests use sys.path.insert before imports — E402 is unavoidable
+    tests/*:E501,E402
+exclude =
+    .git,
+    __pycache__,
+    *.pyc,
+    .eggs

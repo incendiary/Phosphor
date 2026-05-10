@@ -1,0 +1,26 @@
+# Private configuration — never commit real credentials or environment-specific values
+inc/private_includes.py
+
+# x3270 binary output directories
+app/
+cics/
+login/
+dept/
+
+# Python
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Output files
+*.html
+*.xlsx
+*.db
+
+# OS
+.DS_Store

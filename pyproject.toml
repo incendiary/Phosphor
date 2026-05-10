@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phosphor"
+version = "3.0.0"
+description = "Mainframe TN3270 security assessment automation tool for CICS-based z/OS environments"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "incendiary", email = "incendiary@users.noreply.github.com" }]
+keywords = ["mainframe", "security", "penetration-testing", "cics", "tn3270", "z/OS"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = [
+    "pika>=1.3.0",
+    "openpyxl",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "pre-commit",
+]
+
+[project.scripts]
+phosphor = "phosphor:main"
+
+[project.urls]
+Homepage = "https://github.com/incendiary/Phosphor"
+"Bug Tracker" = "https://github.com/incendiary/Phosphor/issues"
+
+[tool.setuptools]
+py-modules = ["phosphor"]
+
+[tool.setuptools.packages.find]
+include = ["inc*", "py3270*"]
+
+[tool.setuptools.package-data]
+"*" = ["default.xml"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
