@@ -1,9 +1,13 @@
 # ============================================================
-# Stage 1: Build patched x3270 / s3270 binaries from source
+# Stage 1: Build patched s3270 binary from source
 # ============================================================
 # Phosphor requires a patched build of suite3270 3.6ga4 that removes
 # field-protection checks, allowing it to interact with protected screen
 # fields. The patch is applied before compilation.
+#
+# Only s3270 (headless scripting binary) is built. x3270 (X11 GUI) is
+# not needed inside Docker and fails to link on GCC 13 (Ubuntu 24.04)
+# due to multiple-definition errors in its X11-specific code.
 FROM ubuntu:24.04 AS suite3270builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,9 +36,9 @@ WORKDIR /build/suite3270-3.6
 COPY suite3270-full.patch .
 
 RUN patch -p1 < suite3270-full.patch \
-    && ./configure --enable-static CFLAGS="-fcommon" \
-    && make \
-    && make install
+    && ./configure --enable-static \
+    && make s3270 \
+    && install -m 755 obj/*/s3270/s3270 /usr/local/bin/s3270
 
 
 # ============================================================
@@ -55,9 +59,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy patched binaries from builder stage
+# Copy patched s3270 binary from builder stage
 COPY --from=suite3270builder /usr/local/bin/s3270 /app/lin_Binaries/s3270
-COPY --from=suite3270builder /usr/local/bin/x3270 /app/lin_Binaries/x3270
 
 # Install Python dependencies before copying source so this layer is cached
 COPY requirements.txt .
@@ -66,7 +69,5 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY . .
 
-# Phosphor runs headless (s3270) by default inside Docker.
-# Pass -v True only if you have an X11 server available and have mounted
-# /tmp/.X11-unix into the container.
+# Phosphor runs headless (s3270) inside Docker.
 ENTRYPOINT ["python3", "phosphor.py"]
