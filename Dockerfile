@@ -1,9 +1,12 @@
 # ============================================================
-# Stage 1: Build patched x3270 / s3270 binaries from source
+# Stage 1: Build patched s3270 binary from source
 # ============================================================
 # Phosphor requires a patched build of suite3270 3.6ga4 that removes
 # field-protection checks, allowing it to interact with protected screen
 # fields. The patch is applied before compilation.
+# x3270 (X11 display binary) is excluded — the Docker image runs headless
+# via s3270. x3270 fails to link on GCC 10+ without -fcommon in all TUs
+# and is not needed here.
 FROM ubuntu:24.04 AS suite3270builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,10 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     build-essential \
     automake \
-    libxt-dev \
-    libxmu-headers \
-    xfonts-utils \
-    libxaw7-dev \
     libncurses-dev \
     tclsh \
     tcl8.6-dev \
@@ -32,7 +31,7 @@ WORKDIR /build/suite3270-3.6
 COPY suite3270-full.patch .
 
 RUN patch -p1 < suite3270-full.patch \
-    && ./configure --enable-static CFLAGS="-fcommon" \
+    && ./configure --enable-static --without-x3270 \
     && make \
     && make install
 
@@ -55,9 +54,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy patched binaries from builder stage
+# Copy patched s3270 binary from builder stage
+# x3270 is not included — Phosphor runs headless inside Docker
 COPY --from=suite3270builder /usr/local/bin/s3270 /app/lin_Binaries/s3270
-COPY --from=suite3270builder /usr/local/bin/x3270 /app/lin_Binaries/x3270
 
 # Install Python dependencies before copying source so this layer is cached
 COPY requirements.txt .
