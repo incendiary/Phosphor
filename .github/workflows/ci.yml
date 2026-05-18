@@ -53,3 +53,6 @@ jobs:
 
       - name: Run tests
         run: python -m unittest discover -s tests -v
+
+      - name: Secret scan (detect-secrets)
+        run: python -m pytest tests/test_secrets.py -v
