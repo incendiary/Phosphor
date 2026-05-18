@@ -7,6 +7,7 @@
 FROM ubuntu:24.04 AS suite3270builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     wget \
     build-essential \
     automake \
