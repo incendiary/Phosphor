@@ -67,7 +67,7 @@ COPY --from=suite3270builder /usr/local/bin/s3270 /app/lin_Binaries/s3270
 
 # Install Python dependencies before copying source so this layer is cached
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copy application source
 COPY . .
