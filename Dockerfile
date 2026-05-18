@@ -32,7 +32,7 @@ WORKDIR /build/suite3270-3.6
 COPY suite3270-full.patch .
 
 RUN patch -p1 < suite3270-full.patch \
-    && ./configure --enable-static \
+    && ./configure --enable-static CFLAGS="-fcommon" \
     && make \
     && make install
 
