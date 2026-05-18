@@ -38,8 +38,7 @@ def set_creds(args):
 
 
 def do_setup():
-    print(
-        r"""
+    print(r"""
 
 
                       ________              __
@@ -48,8 +47,7 @@ def do_setup():
                     \    \_\  \  | \/  |  /|  | \  ___/
                      \______  /__|  |____/ |__|  \___  >
                             \/                       \/
-                """
-    )
+                """)
 
     parser = argparse.ArgumentParser(
         description="Grute helps with green screen app testing, in theory"

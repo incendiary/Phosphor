@@ -6,8 +6,7 @@ class PhosphorDB:
 
     def __init__(self, path="phosphor.db"):
         self._conn = sqlite3.connect(path)
-        self._conn.execute(
-            """
+        self._conn.execute("""
             CREATE TABLE IF NOT EXISTS results (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id      TEXT    NOT NULL,
@@ -18,8 +17,7 @@ class PhosphorDB:
                 response    TEXT    NOT NULL,
                 recorded_at TEXT    NOT NULL DEFAULT (datetime('now'))
             )
-            """
-        )
+            """)
         self._conn.commit()
 
     def record(self, run_id, mode, code, response, username=None, environment=None):
