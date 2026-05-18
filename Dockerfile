@@ -5,10 +5,13 @@
 # field-protection checks, allowing it to interact with protected screen
 # fields. The patch is applied before compilation.
 #
-# Only s3270 (headless scripting binary) is built. x3270 (X11 GUI) is
-# not needed inside Docker and fails to link on GCC 13 (Ubuntu 24.04)
-# due to multiple-definition errors in its X11-specific code.
-FROM ubuntu:24.04 AS suite3270builder
+# Only s3270 (headless scripting binary) is built. suite3270 3.6ga4
+# predates GCC 10's -fno-common default and fails to link on GCC 13
+# (Ubuntu 24.04). The builder uses Ubuntu 20.04 (GCC 9, -fcommon by
+# default) to compile the binary; the runtime image stays on 24.04.
+FROM ubuntu:20.04 AS suite3270builder
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
