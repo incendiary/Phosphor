@@ -149,10 +149,16 @@ class TestTargetsArgParsing(unittest.TestCase):
         self.assertEqual(args.targets, ["192.168.1.1:3270"])
 
     def test_multiple_targets(self):
-        args = self._parse([
-            "--targets", "host1:3270", "host2:3270", "host3:3270",
-            "--config", FIXTURE,
-        ])
+        args = self._parse(
+            [
+                "--targets",
+                "host1:3270",
+                "host2:3270",
+                "host3:3270",
+                "--config",
+                FIXTURE,
+            ]
+        )
         self.assertEqual(args.targets, ["host1:3270", "host2:3270", "host3:3270"])
 
     def test_targets_default_is_none(self):
@@ -197,10 +203,12 @@ class TestMultiTargetDispatch(unittest.TestCase):
             db=":memory:",
         )
 
-        with patch("phosphor.do_setup", return_value=mock_args), \
-             patch("phosphor.set_creds", return_value={}), \
-             patch("phosphor.read_xml", return_value=[]), \
-             patch("phosphor._run_target", side_effect=fake_run_target):
+        with (
+            patch("phosphor.do_setup", return_value=mock_args),
+            patch("phosphor.set_creds", return_value={}),
+            patch("phosphor.read_xml", return_value=[]),
+            patch("phosphor._run_target", side_effect=fake_run_target),
+        ):
             phosphor.main()
 
         self.assertCountEqual(call_log, ["host1:3270", "host2:3270"])

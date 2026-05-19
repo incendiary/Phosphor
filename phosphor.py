@@ -239,9 +239,17 @@ class MainFrame(AuthMixin, CicsMixin, AppMixin, UsersMixin, CemtMixin, PasswordM
 
 
 def _run_target(
-    target_addr, args, credentials, app_list_dict, env_list_dict,
-    overtype_list_dict, region_login_position_list_dict,
-    bad_app_codes_list, cics_config_list, dept_config_list, dept_screen_list,
+    target_addr,
+    args,
+    credentials,
+    app_list_dict,
+    env_list_dict,
+    overtype_list_dict,
+    region_login_position_list_dict,
+    bad_app_codes_list,
+    cics_config_list,
+    dept_config_list,
+    dept_screen_list,
 ):
     """Run all selected scan modes against a single target address.
 
@@ -462,8 +470,7 @@ def main():
         logger.info("Scanning %d targets concurrently", len(target_list))
         with ThreadPoolExecutor(max_workers=len(target_list)) as executor:
             futures = {
-                executor.submit(_run_target, t, **scan_kwargs): t
-                for t in target_list
+                executor.submit(_run_target, t, **scan_kwargs): t for t in target_list
             }
             for future in as_completed(futures):
                 t = futures[future]
