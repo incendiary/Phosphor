@@ -62,6 +62,17 @@ def do_setup():
         dest="target",
     )
     parser.add_argument(
+        "--targets",
+        nargs="+",
+        metavar="TARGET",
+        dest="targets",
+        help=(
+            "One or more targets (HOST[:PORT]). "
+            "Multiple targets are scanned concurrently via a thread pool. "
+            "Cannot be combined with --target."
+        ),
+    )
+    parser.add_argument(
         "-s",
         "--sleep",
         help=(
@@ -309,11 +320,12 @@ def do_setup():
     if args.logmein:
         args.visable = True
 
-    if not args.target:
+    has_target = bool(args.target) or bool(getattr(args, "targets", None))
+    if not has_target:
         print("      [!] You gotta specify a target. Try -h for help.")
         sys.exit()
 
-    if ":" not in args.target:
+    if args.target and ":" not in args.target:
         print("      [!] Target Format off, use host:port . Try -h for help.")
         sys.exit()
 

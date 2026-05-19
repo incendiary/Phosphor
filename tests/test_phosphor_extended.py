@@ -46,6 +46,7 @@ def make_args(**kwargs):
         department=False,
         cemt_trans=False,
         db=":memory:",
+        targets=None,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)

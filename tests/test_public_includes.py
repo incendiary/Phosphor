@@ -2,10 +2,12 @@ import argparse
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from inc.public_includes import (
+    do_setup,
     read_xml,
     return_password_reset_string,
     set_creds,
@@ -133,6 +135,83 @@ class TestPublicPasswordStub(unittest.TestCase):
     def test_stub_returns_non_empty(self):
         result = return_password_reset_string()
         self.assertTrue(len(result) > 0)
+
+
+class TestTargetsArgParsing(unittest.TestCase):
+    """Verify --targets is accepted by do_setup() and sets args.targets correctly."""
+
+    def _parse(self, argv):
+        with patch("sys.argv", ["phosphor"] + argv):
+            return do_setup()
+
+    def test_single_target_via_targets_flag(self):
+        args = self._parse(["--targets", "192.168.1.1:3270", "--config", FIXTURE])
+        self.assertEqual(args.targets, ["192.168.1.1:3270"])
+
+    def test_multiple_targets(self):
+        args = self._parse(
+            [
+                "--targets",
+                "host1:3270",
+                "host2:3270",
+                "host3:3270",
+                "--config",
+                FIXTURE,
+            ]
+        )
+        self.assertEqual(args.targets, ["host1:3270", "host2:3270", "host3:3270"])
+
+    def test_targets_default_is_none(self):
+        args = self._parse(["--target", "host:3270", "--config", FIXTURE])
+        self.assertIsNone(args.targets)
+
+    def test_legacy_target_flag_still_works(self):
+        args = self._parse(["--target", "legacy:3270", "--config", FIXTURE])
+        self.assertEqual(args.target, "legacy:3270")
+
+
+class TestMultiTargetDispatch(unittest.TestCase):
+    """Verify _run_target is called once per target via the ThreadPoolExecutor path."""
+
+    def test_multi_target_calls_run_target_for_each(self):
+        """main() should call _run_target N times when len(target_list) > 1."""
+        import phosphor
+
+        call_log = []
+
+        def fake_run_target(target_addr, **_kwargs):
+            call_log.append(target_addr)
+
+        mock_args = argparse.Namespace(
+            target=None,
+            targets=["host1:3270", "host2:3270"],
+            config=FIXTURE,
+            sleep=0,
+            clobber=False,
+            user="u",
+            password="p",
+            appuser=None,
+            apppassword=None,
+            debug=False,
+            populate_cics=False,
+            populate_apps=False,
+            populate_users=False,
+            bulk_auth_create=False,
+            excel=False,
+            manual_inport=False,
+            manual_export=False,
+            db=":memory:",
+        )
+
+        with (
+            patch("phosphor.do_setup", return_value=mock_args),
+            patch("phosphor.set_creds", return_value={}),
+            patch("phosphor.read_xml", return_value=[]),
+            patch("phosphor._run_target", side_effect=fake_run_target),
+        ):
+            phosphor.main()
+
+        self.assertCountEqual(call_log, ["host1:3270", "host2:3270"])
 
 
 if __name__ == "__main__":

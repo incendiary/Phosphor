@@ -7,6 +7,7 @@ import os
 import platform
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pika
 
@@ -237,6 +238,127 @@ class MainFrame(AuthMixin, CicsMixin, AppMixin, UsersMixin, CemtMixin, PasswordM
         return False
 
 
+def _run_target(
+    target_addr,
+    args,
+    credentials,
+    app_list_dict,
+    env_list_dict,
+    overtype_list_dict,
+    region_login_position_list_dict,
+    bad_app_codes_list,
+    cics_config_list,
+    dept_config_list,
+    dept_screen_list,
+):
+    """Run all selected scan modes against a single target address.
+
+    Designed to be called from a ThreadPoolExecutor when scanning multiple
+    targets concurrently.  All read-only configuration objects are passed in
+    so they can be shared safely across threads.
+    """
+    target = MainFrame(target_addr, args.sleep, args.clobber, credentials, args)
+    target.set_bad_app_codes(bad_app_codes_list)
+    if cics_config_list:
+        target.set_cics_launch_command(cics_config_list[0]["launch_command"])
+    if dept_config_list:
+        target.set_department_config(dept_config_list[0])
+    if dept_screen_list:
+        target.set_department_screen_config(dept_screen_list[0])
+
+    if args.changepass:
+        target.add_password_reset_info(read_xml(args.config, "account"))
+        target.change_passwords()
+        time.sleep(args.sleep)
+        return
+
+    def _connect_and_login(with_app_sleep=False):
+        if not target.connect_to_zos():
+            return False
+        logger.info("Connected to %s", target_addr)
+        target.wait_for_field_and_screenshot()
+        target.vtam_login()
+        target.save_screen_normal()
+        target.set_region(region_login_position_list_dict)
+        target.login_to_region()
+        if with_app_sleep:
+            time.sleep(args.sleep)
+        target.login_to_app()
+        if with_app_sleep:
+            time.sleep(args.sleep)
+        return True
+
+    if args.logmein:
+        if _connect_and_login(with_app_sleep=True):
+            while True:
+                time.sleep(1)
+
+    if args.check_cics:
+        cics_list_dict = read_xml(args.config, "cics")
+        if _connect_and_login():
+            target.save_screen_normal()
+            target.get_to_cics(cics_list_dict)
+            logger.info("Should be in CICS")
+            time.sleep(1)
+            target.check_cics_transactions()
+            target.terminate()
+
+    if args.check_user:
+        if target.connect_to_zos():
+            target.add_username_field_location(
+                read_xml(args.config, "username_login_field_location")
+            )
+            target.add_username_responses(read_xml(args.config, "username_response"))
+            logger.info("Connected to %s", target_addr)
+            target.check_login()
+            target.terminate()
+
+    if args.bulk_auth:
+        target.set_bulk_app_mode_true()
+
+    if args.env_switch:
+        for environment in env_list_dict:
+            if environment["default"].lower() == "false":
+                target.set_environment(environment)
+                break
+    else:
+        for environment in env_list_dict:
+            if environment["default"].lower() == "true":
+                target.set_environment(environment)
+                break
+
+    logger.info("%s", target.get_enviroment())
+
+    if args.check_app or args.bulk_auth:
+        if _connect_and_login(with_app_sleep=True):
+            logger.debug("Environment: %s", target.environment)
+            if args.overtype:
+                target.set_overtype(overtype_list_dict)
+            target.save_screen_normal()
+            time.sleep(args.sleep)
+            logger.info("Should be in App")
+            target.check_application(app_list_dict)
+            target.terminate()
+
+    if args.department:
+        if _connect_and_login(with_app_sleep=True):
+            logger.debug("Environment: %s", target.environment)
+            if args.overtype:
+                target.set_overtype(overtype_list_dict)
+            target.save_screen_normal()
+            time.sleep(args.sleep)
+            logger.info("Should be in App")
+            target.get_department()
+
+    if args.cemt_trans:
+        cics_list_dict = read_xml(args.config, "cics")
+        if _connect_and_login():
+            target.save_screen_normal()
+            target.get_to_cics(cics_list_dict)
+            logger.info("Should be in CICS")
+            target.get_cemt_transactions()
+
+
 def main():
 
     args = do_setup()
@@ -321,107 +443,40 @@ def main():
 
     credentials = set_creds(args)
 
-    target = MainFrame(args.target, args.sleep, args.clobber, credentials, args)
-    target.set_bad_app_codes(bad_app_codes_list)
-    if cics_config_list:
-        target.set_cics_launch_command(cics_config_list[0]["launch_command"])
-    if dept_config_list:
-        target.set_department_config(dept_config_list[0])
-    if dept_screen_list:
-        target.set_department_screen_config(dept_screen_list[0])
+    # Build target list — --targets takes precedence; fall back to --target
+    target_list = getattr(args, "targets", None) or (
+        [args.target] if args.target else None
+    )
+    if not target_list:
+        logger.error("Provide --target TARGET or --targets TARGET [TARGET ...]")
+        sys.exit(1)
 
-    if args.changepass:
-        target.add_password_reset_info(read_xml(args.config, "account"))
-        target.change_passwords()
-        time.sleep(args.sleep)
-        sys.exit()
+    scan_kwargs = dict(
+        args=args,
+        credentials=credentials,
+        app_list_dict=app_list_dict,
+        env_list_dict=env_list_dict,
+        overtype_list_dict=overtype_list_dict,
+        region_login_position_list_dict=region_login_position_list_dict,
+        bad_app_codes_list=bad_app_codes_list,
+        cics_config_list=cics_config_list,
+        dept_config_list=dept_config_list,
+        dept_screen_list=dept_screen_list,
+    )
 
-    def _connect_and_login(with_app_sleep=False):
-        if not target.connect_to_zos():
-            return False
-        logger.info("Connected")
-        target.wait_for_field_and_screenshot()
-        target.vtam_login()
-        target.save_screen_normal()
-        target.set_region(region_login_position_list_dict)
-        target.login_to_region()
-        if with_app_sleep:
-            time.sleep(args.sleep)
-        target.login_to_app()
-        if with_app_sleep:
-            time.sleep(args.sleep)
-        return True
-
-    if args.logmein:
-        if _connect_and_login(with_app_sleep=True):
-            while True:
-                time.sleep(1)
-
-    if args.check_cics:
-        cics_list_dict = read_xml(args.config, "cics")
-
-        if _connect_and_login():
-            target.save_screen_normal()
-            target.get_to_cics(cics_list_dict)
-            logger.info("Should be in CICS")
-            time.sleep(1)
-            target.check_cics_transactions()
-            target.terminate()
-
-    if args.check_user:
-        if target.connect_to_zos():
-            target.add_username_field_location(
-                read_xml(args.config, "username_login_field_location")
-            )
-            target.add_username_responses(read_xml(args.config, "username_response"))
-            logger.info("Connected")
-            target.check_login()
-            target.terminate()
-
-    if args.bulk_auth:
-        target.set_bulk_app_mode_true()
-
-    if args.env_switch:
-        for environment in env_list_dict:
-            if environment["default"].lower() == "false":
-                target.set_environment(environment)
-                break
+    if len(target_list) == 1:
+        _run_target(target_list[0], **scan_kwargs)
     else:
-        for environment in env_list_dict:
-            if environment["default"].lower() == "true":
-                target.set_environment(environment)
-                break
-
-    logger.info("%s", target.get_enviroment())
-
-    if args.check_app or args.bulk_auth:
-        if _connect_and_login(with_app_sleep=True):
-            logger.debug("Environment: %s", target.environment)
-            if args.overtype:
-                target.set_overtype(overtype_list_dict)
-            target.save_screen_normal()
-            time.sleep(args.sleep)
-            logger.info("Should be in App")
-            target.check_application(app_list_dict)
-            target.terminate()
-
-    if args.department:
-        if _connect_and_login(with_app_sleep=True):
-            logger.debug("Environment: %s", target.environment)
-            if args.overtype:
-                target.set_overtype(overtype_list_dict)
-            target.save_screen_normal()
-            time.sleep(args.sleep)
-            logger.info("Should be in App")
-            target.get_department()
-
-    if args.cemt_trans:
-        cics_list_dict = read_xml(args.config, "cics")
-        if _connect_and_login():
-            target.save_screen_normal()
-            target.get_to_cics(cics_list_dict)
-            logger.info("Should be in CICS")
-            target.get_cemt_transactions()
+        logger.info("Scanning %d targets concurrently", len(target_list))
+        with ThreadPoolExecutor(max_workers=len(target_list)) as executor:
+            futures = {
+                executor.submit(_run_target, t, **scan_kwargs): t for t in target_list
+            }
+            for future in as_completed(futures):
+                t = futures[future]
+                exc = future.exception()
+                if exc:
+                    logger.error("Target %s raised an exception: %s", t, exc)
 
 
 if __name__ == "__main__":
