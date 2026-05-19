@@ -238,9 +238,11 @@ class MainFrame(AuthMixin, CicsMixin, AppMixin, UsersMixin, CemtMixin, PasswordM
         return False
 
 
-def _run_target(target_addr, args, credentials, app_list_dict, env_list_dict,
-                overtype_list_dict, region_login_position_list_dict,
-                bad_app_codes_list, cics_config_list, dept_config_list, dept_screen_list):
+def _run_target(
+    target_addr, args, credentials, app_list_dict, env_list_dict,
+    overtype_list_dict, region_login_position_list_dict,
+    bad_app_codes_list, cics_config_list, dept_config_list, dept_screen_list,
+):
     """Run all selected scan modes against a single target address.
 
     Designed to be called from a ThreadPoolExecutor when scanning multiple
@@ -434,7 +436,9 @@ def main():
     credentials = set_creds(args)
 
     # Build target list — --targets takes precedence; fall back to --target
-    target_list = getattr(args, "targets", None) or ([args.target] if args.target else None)
+    target_list = getattr(args, "targets", None) or (
+        [args.target] if args.target else None
+    )
     if not target_list:
         logger.error("Provide --target TARGET or --targets TARGET [TARGET ...]")
         sys.exit(1)
