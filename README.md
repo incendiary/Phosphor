@@ -302,6 +302,7 @@ The project works, but there are known areas for improvement. Contributions welc
 **Operations**
 - [x] CI pipeline (GitHub Actions) running tests and linting on every push
 - [x] Pre-built Docker image published to a registry ([#7](https://github.com/incendiary/Phosphor/issues/7))
+- [x] Sync connection pooling for multi-target scans — `--targets host1:port host2:port ...` fans out via `ThreadPoolExecutor`; `--target` still works for single-target runs ([#41](https://github.com/incendiary/Phosphor/issues/41))
 
 If you hit a bug or missing feature on a real target, please open an issue or PR — that kind of feedback is the most valuable thing for a tool like this.
 
